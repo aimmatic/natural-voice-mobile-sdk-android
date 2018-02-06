@@ -3,8 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/aimmatic-android-sdk-natural-voice.iml" filepath="$PROJECT_DIR$/aimmatic-android-sdk-natural-voice.iml" />
-      <module fileurl="file://$PROJECT_DIR$/voice-android/voice-android.iml" filepath="$PROJECT_DIR$/voice-android/voice-android.iml" />
       <module fileurl="file://$PROJECT_DIR$/sample/sample.iml" filepath="$PROJECT_DIR$/sample/sample.iml" />
+      <module fileurl="file://$PROJECT_DIR$/voice-android/voice-android.iml" filepath="$PROJECT_DIR$/voice-android/voice-android.iml" />
     </modules>
   </component>
 </project>
