@@ -11,9 +11,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package com.aimmatic.placenext.rest;
+package com.aimmatic.natural.voice.rest;
 
-import com.aimmatic.placenext.core.rest.AppContext;
+import com.aimmatic.natural.core.rest.AppContext;
 
 import java.io.File;
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package com.aimmatic.placenext;
+package com.aimmatic.natural;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;

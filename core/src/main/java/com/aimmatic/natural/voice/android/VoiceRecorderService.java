@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package com.aimmatic.placenext.android;
+package com.aimmatic.natural.voice.android;
 
 import android.Manifest;
 import android.app.Service;
@@ -30,9 +30,9 @@ import android.support.v4.content.ContextCompat;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.aimmatic.placenext.BuildConfig;
-import com.aimmatic.placenext.core.rest.AndroidAppContext;
-import com.aimmatic.placenext.rest.VoiceSender;
+import com.aimmatic.natural.BuildConfig;
+import com.aimmatic.natural.core.rest.AndroidAppContext;
+import com.aimmatic.natural.voice.rest.VoiceSender;
 
 import java.io.File;
 import java.io.FileNotFoundException;

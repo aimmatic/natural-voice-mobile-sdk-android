@@ -11,14 +11,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package com.aimmatic.placenext.android;
+package com.aimmatic.natural.voice.android;
 
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.util.Log;
 
-import com.aimmatic.placenext.BuildConfig;
+import com.aimmatic.natural.BuildConfig;
 
 /**
  * This class represent an audio recorder. It record the speech into a wave format PCM 16 bit.
