@@ -12,7 +12,7 @@ This library allows you to integrate Placenext Natural Voice into your Android a
 
 ```gradle
 dependencies {
-    compile 'com.aimmatic.placenext:placenext-android:0.0.1'
+    compile 'com.aimmatic.natural:voice-android:0.1.0'
 }
 ```
 
