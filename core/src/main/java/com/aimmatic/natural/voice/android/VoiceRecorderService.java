@@ -51,10 +51,10 @@ public class VoiceRecorderService extends Service {
     private static final String TAG = "VoiceRecorderService";
 
     /**
-     * Helper class to return {@VoiceRecorderService} from an interface binder.
+     * Helper class to return VoiceRecorderService from an interface binder.
      *
      * @param binder an interface bind
-     * @return {@VoiceRecorderService} instance
+     * @return VoiceRecorderService instance
      */
     public static VoiceRecorderService from(IBinder binder) {
         return ((AudioRecordBinder) binder).getService();
