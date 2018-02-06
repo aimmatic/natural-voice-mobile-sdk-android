@@ -22,14 +22,14 @@ Add below metadata underneath the application tag.
 
 ```xml
 <meta-data
-    android:name="com.aimmatic.placenext.apikey"
+    android:name="com.aimmatic.natural.voice.apikey"
     android:value="YOUR API KEY" />
 ```
 
 Add Service into your application
 
 ```xml
-<service android:name="com.aimmatic.placenext.android.VoiceRecorderService" />
+<service android:name="com.aimmatic.natural.voice.android.VoiceRecorderService" />
 ```
 
 ## Add Kotlin Code ##

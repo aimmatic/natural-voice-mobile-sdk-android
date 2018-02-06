@@ -24,7 +24,7 @@ public interface AppContext {
     /**
      * a package name use as key to define in Android Manifest.
      */
-    String apikey = "com.aimmatic.placenext.apikey";
+    String apikey = "com.aimmatic.natural.voice.apikey";
 
     /**
      * a default Placenext host domain
@@ -36,7 +36,7 @@ public interface AppContext {
      *
      * @return a string represent Placenext address
      */
-    public String getHost();
+    String getHost();
 
     /**
      * Get apikey to access to Placenext API. This value will be reading from Android Manifest file
@@ -45,12 +45,13 @@ public interface AppContext {
      * @return a string represent Placenext ApiKey
      * @throws Exception if key was not found or unable to read ApiKey from Android Manifest file
      */
-    public String getApiKey() throws Exception;
+    String getApiKey() throws Exception;
 
     /**
      * Get okhttp client where interceptor is added by default
+     *
      * @return okhttp client instance
      */
-    public OkHttpClient getOkHttpClient();
+    OkHttpClient getOkHttpClient();
 
 }
