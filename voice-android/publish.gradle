@@ -1,0 +1,59 @@
+apply plugin: 'maven-publish'
+apply plugin: 'com.jfrog.bintray'
+
+version '0.1.0'
+group 'com.aimmatic.natural'
+
+publishing {
+    publications {
+        Production(MavenPublication) {
+            artifact("$buildDir/outputs/aar/voice-android-release.aar")
+            groupId this.group
+            artifactId 'voice-android'
+            version this.version
+
+            pom.withXml {
+                def dependenciesNode = asNode().appendNode('dependencies')
+
+                // Iterate over the implementation dependencies (we don't want the test ones), adding a <dependency> node for each
+                configurations.implementation.allDependencies.each {
+                    // Ensure dependencies such as fileTree are not included in the pom.
+                    if (it.name != 'unspecified') {
+                        def dependencyNode = dependenciesNode.appendNode('dependency')
+                        dependencyNode.appendNode('groupId', it.group)
+                        dependencyNode.appendNode('artifactId', it.name)
+                        dependencyNode.appendNode('version', it.version)
+                    }
+                }
+            }
+        }
+    }
+}
+
+bintray {
+    user = project.hasProperty('BINTRAY_USER') ?: System.getenv('BINTRAY_USER')
+    key = project.hasProperty('BINTRAY_API_KEY') ?: System.getenv('BINTRAY_API_KEY')
+    publications = ['Production']
+    configurations = ['archives']
+    override = true
+    pkg {
+        repo = 'com.aimmatic.natural'
+        name = 'Natural Voice Mobile SDK'
+        description = "AimMatic Natural Voice Mobile SDK."
+        publish = true
+        publicDownloadNumbers = true
+        licenses = ['Apache-2.0']
+        vcsUrl = 'https://github.com/aimmatic/natural-voice-mobile-sdk-android.git'
+        dryRun = true
+        version {
+            name = this.version
+            desc = "Natural Voice Mobile SDK ${this.version}"
+            released = new Date()
+            vcsTag = this.version
+            gpg {
+                sign = true //Determines whether to GPG sign the files. The default is false
+                passphrase = project.hasProperty('BINTRAY_GPG_PASSWORD') ?: System.getenv('BINTRAY_GPG_PASSWORD') //Optional. The passphrase for GPG signing'
+            }
+        }
+    }
+}

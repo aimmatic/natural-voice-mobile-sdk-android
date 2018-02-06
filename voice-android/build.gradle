@@ -1,29 +1,5 @@
 apply plugin: 'com.android.library'
 
-ext {
-    bintrayRepo = 'WebViewOverlay'
-    bintrayName = 'WebViewOverlay'
-
-    publishedGroupId = 'com.aimmatic.natural'
-    libraryName = 'Natural Voice Mobile SDK'
-    artifact = 'voice-android'
-
-    libraryDescription = 'AimMatic Natural Voice Mobile SDK.'
-
-    siteUrl = 'https://github.com/aimmatic/natural-voice-mobile-sdk-android'
-    gitUrl = 'https://github.com/aimmatic/natural-voice-mobile-sdk-android.git'
-
-    libraryVersion = '0.1.0'
-
-    developerId = 'AimMatic'
-    developerName = 'AimMatic'
-    developerEmail = 'steven.kaiser@aimmatic.com'
-
-    licenseName = 'The Apache Software License, Version 2.0'
-    licenseUrl = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-    allLicenses = ["Apache-2.0"]
-}
-
 android {
     compileSdkVersion 26
     defaultConfig {
@@ -55,5 +31,4 @@ dependencies {
     compile 'com.squareup.okhttp3:okhttp:3.9.1'
 }
 
-apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/installv1.gradle'
-apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/bintrayv1.gradle'
+apply from: 'publish.gradle'
