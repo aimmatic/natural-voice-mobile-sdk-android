@@ -219,6 +219,7 @@ public class VoiceRecorder {
         private void end() {
             voiceHeardMillis = Long.MAX_VALUE;
             eventListener.onRecordEnd();
+            stop();
         }
 
         // detect if we can hear the voice
