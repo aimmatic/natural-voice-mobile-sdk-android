@@ -16,7 +16,7 @@ package com.aimmatic.natural.voice.android;
 import android.os.AsyncTask;
 
 /**
- * Created by veasna on 2/2/18.
+ * LibFlac java native jni interface to convert raw wav pcm 16 bit binary into flac format.
  */
 
 public class LibFlac {
@@ -25,18 +25,26 @@ public class LibFlac {
         System.loadLibrary("flacJNI");
     }
 
+    /**
+     * State flac list hasn't initialized yet
+     */
     public static final int STATE_UNINITIALIZED = 0;
 
+    /**
+     * State flac has initialized
+     */
     public static final int STATE_INITIALIZED = 1;
 
-    public static final int RECORDSTATE_STOPPED = 1;
-
-    public static final int RECORDSTATE_RECORDING = 3;
-
     /**
-     *
+     * Encoder callback
      */
     public interface EncoderCallback {
+        /**
+         * call when flac successfully encode wav to a binary flac.
+         *
+         * @param data  flac binary file data
+         * @param sized size of data in byte
+         */
         void onEncoded(byte[] data, int sized);
     }
 
@@ -46,12 +54,14 @@ public class LibFlac {
     private EncoderCallback encoderCallback;
 
     /**
-     * @param sampleRate
-     * @param channel
-     * @param bps
-     * @param totalSample
-     * @param compressLevel
-     * @throws IllegalStateException
+     * initialize the flac lib.
+     *
+     * @param sampleRate    sample rate of audio
+     * @param channel       channel of audio like digital or mono
+     * @param bps           bit per second. Usually 16
+     * @param totalSample   estimate of total byte data sample
+     * @param compressLevel a compression level for flac
+     * @throws IllegalStateException throw when configuration is not valid
      */
     public void initialize(int sampleRate, int channel, int bps, int totalSample, int compressLevel) throws IllegalStateException {
         this.channel = channel;
@@ -62,13 +72,19 @@ public class LibFlac {
         }
     }
 
+    /**
+     * Set Flac encode callback
+     *
+     * @param encodeCallback flac encoder callback
+     */
     public void setFlacEncodeCallback(EncoderCallback encodeCallback) {
         this.encoderCallback = encodeCallback;
     }
 
     /**
-     * @param buffer
-     * @return
+     * Send a wav PCM 16 bit raw data
+     *
+     * @param buffer a binary of raw wav pcm
      */
     public void encode(byte[] buffer) {
         if (!this.encode(cPointer, channel, buffer)) {
@@ -77,8 +93,10 @@ public class LibFlac {
     }
 
     /**
-     * @param data
-     * @param size
+     * Called by native c/c++ code when encode to flac is done.
+     *
+     * @param data flac binary data
+     * @param size size of data in byte
      */
     void onEncoded(byte[] data, int size) {
         if (encoderCallback != null) {
@@ -87,7 +105,7 @@ public class LibFlac {
     }
 
     /**
-     *
+     * free native resource
      */
     public void release() {
         if (state != STATE_UNINITIALIZED) {
@@ -102,42 +120,35 @@ public class LibFlac {
     }
 
     /**
-     *
+     * mark encode as done. Flac lib will send addition data to finalize the flac binary data.
      */
     public void finish() {
         this.finish(cPointer);
     }
 
-    /**
-     * @param cPointer
+    /*
+     * release native resource with given pointer
      */
     private native void release(long cPointer);
 
-    /**
-     *
-     * @param cPointer
+    /*
+     * finish encode resource with given pointer
      */
     private native void finish(long cPointer);
 
-    /**
-     * @param cPointer
-     * @param in
+    /*
+     * encode the wav to flac using native code by passing wave binary data, number of channel
+     * and the reference to C pointer.
      */
     private native boolean encode(long cPointer, int channel, byte[] in);
 
-    /**
-     * @return
+    /*
+     * initialize flac native resource
      */
     private native long init();
 
-    /**
-     * @param cPointer
-     * @param sampleRate
-     * @param channel
-     * @param bps
-     * @param totalSample
-     * @param compressLevel
-     * @return
+    /*
+     * set metadata of current audio wave
      */
     private native int setMetadata(long cPointer, int sampleRate, int channel, int bps, int totalSample, int compressLevel);
 
