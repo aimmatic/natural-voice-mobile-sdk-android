@@ -42,8 +42,12 @@ import java.util.ArrayList;
 import java.util.Locale;
 
 /**
+<<<<<<< HEAD
  * This class represent voice recorder service, a service that record the speech and send
  * wave data to Placenext SDK to analise and process voice recognition.
+=======
+ * Created by veasna on 2/2/18.
+>>>>>>> Initial Android Placenext SDK.
  */
 
 public class VoiceRecorderService extends Service {
