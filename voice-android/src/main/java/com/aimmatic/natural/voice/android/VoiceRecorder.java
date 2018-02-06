@@ -42,7 +42,17 @@ public class VoiceRecorder {
     private static final int MAX_SPEECH_LENGTH_MILLIS = 29 * 1000;
 
     /**
-     * Voice record event listener
+     * encode audio as wave pcm 16 bit
+     */
+    public static int VOICE_ENCODE_AS_WAVE = 1;
+
+    /**
+     * encode audio as flac from pcm wave 16 bit
+     */
+    public static int VOICE_ENCODE_AS_FLAC = 2;
+
+    /**
+     * event audio recorder listener
      */
     public static abstract class EventListener {
 
@@ -71,11 +81,18 @@ public class VoiceRecorder {
 
     //
     private AudioRecord audioRecord;
+    //
+    private LibFlac libFlac;
+    private int samplreRate;
+    private int sizeInBytes;
+    //
     private Thread thread;
     private byte[] buffer;
     private final Object lock = new Object();
     // internal callback
     private final EventListener eventListener;
+    //
+    private final int encodingType;
 
     private long voiceHeardMillis = Long.MAX_VALUE;
     private long voiceStartStartedMillis;
@@ -84,9 +101,11 @@ public class VoiceRecorder {
      * Create a new voice recorder object. It you decide to use this class directly you make sure to
      * stop the recorder during device rotation otherwise leak or crash can happen.
      *
+     * @param encodingType  encode type
      * @param eventListener voice recorder event listener
      */
-    public VoiceRecorder(EventListener eventListener) {
+    public VoiceRecorder(int encodingType, EventListener eventListener) {
+        this.encodingType = encodingType;
         this.eventListener = eventListener;
     }
 
@@ -95,6 +114,17 @@ public class VoiceRecorder {
      */
     public void start() {
         stop();
+        if (encodingType == VOICE_ENCODE_AS_FLAC) {
+            libFlac = new LibFlac();
+            libFlac.setFlacEncodeCallback(new LibFlac.EncoderCallback() {
+                @Override
+                public void onEncoded(byte[] data, int sized) {
+                    if (eventListener != null) {
+                        eventListener.onRecording(data, sized);
+                    }
+                }
+            });
+        }
         audioRecord = createAudioRecord();
         if (audioRecord == null) {
             throw new RuntimeException("Cannot instantiate VoiceRecorder");
@@ -123,6 +153,10 @@ public class VoiceRecorder {
                 audioRecord.stop();
                 audioRecord.release();
                 audioRecord = null;
+            }
+            if (libFlac != null) {
+                libFlac.release();
+                libFlac = null;
             }
             buffer = null;
             if (BuildConfig.DEBUG) {
@@ -169,6 +203,12 @@ public class VoiceRecorder {
                     sampleRate, CHANNEL, ENCODING, sizeInBytes);
             if (audioRecord.getState() == AudioRecord.STATE_INITIALIZED) {
                 buffer = new byte[sizeInBytes];
+                if (encodingType == VOICE_ENCODE_AS_FLAC) {
+                    // 1 CHANNEL mono
+                    // 16 ENCODING_PCM_16BIT
+                    this.samplreRate = sampleRate;
+                    this.sizeInBytes = sizeInBytes;
+                }
                 return audioRecord;
             } else {
                 audioRecord.release();
@@ -199,14 +239,26 @@ public class VoiceRecorder {
                         if (voiceHeardMillis == Long.MAX_VALUE) {
                             voiceStartStartedMillis = now;
                             eventListener.onRecordStart();
+                            if (VoiceRecorder.this.encodingType == VOICE_ENCODE_AS_FLAC) {
+                                libFlac.initialize(VoiceRecorder.this.getSampleRate(), 1,
+                                        16, VoiceRecorder.this.sizeInBytes, 5);
+                            }
                         }
-                        eventListener.onRecording(buffer, size);
+                        if (encodingType == VOICE_ENCODE_AS_FLAC) {
+                            libFlac.encode(buffer);
+                        } else {
+                            eventListener.onRecording(buffer, size);
+                        }
                         voiceHeardMillis = now;
                         if (now - voiceStartStartedMillis > MAX_SPEECH_LENGTH_MILLIS) {
                             end();
                         }
                     } else if (voiceHeardMillis != Long.MAX_VALUE) {
-                        eventListener.onRecording(buffer, size);
+                        if (encodingType == VOICE_ENCODE_AS_FLAC) {
+                            libFlac.encode(buffer);
+                        } else {
+                            eventListener.onRecording(buffer, size);
+                        }
                         if (now - voiceHeardMillis > SPEECH_TIMEOUT_MILLIS) {
                             end();
                         }
@@ -219,6 +271,9 @@ public class VoiceRecorder {
         private void end() {
             voiceHeardMillis = Long.MAX_VALUE;
             eventListener.onRecordEnd();
+            if (encodingType == VOICE_ENCODE_AS_FLAC) {
+                libFlac.finish();
+            }
             stop();
         }
 

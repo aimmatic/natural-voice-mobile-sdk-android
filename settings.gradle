@@ -1,1 +1,1 @@
-include ':voice-android'
+include ':voice-android', 'sample'
