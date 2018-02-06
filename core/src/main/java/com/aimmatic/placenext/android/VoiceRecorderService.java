@@ -21,6 +21,7 @@ import android.content.pm.PackageManager;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
+import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
@@ -166,35 +167,11 @@ public class VoiceRecorderService extends Service {
                     try {
                         outWav.close();
                     } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    // set send the file
-                    File file = new File(getCacheDir(), "aimmatic-audio.wav");
-                    File sendFile = new File(getCacheDir(), System.currentTimeMillis() + ".wav");
-                    if (file.renameTo(sendFile)) {
-                        VoiceSender voiceSender = new VoiceSender(new AndroidAppContext(getApplicationContext()));
-                        int permission = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION);
-                        double lat = 0, lng = 0;
-                        if (permission == PackageManager.PERMISSION_GRANTED) {
-                            LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                            Criteria criteria = new Criteria();
-                            criteria.setAccuracy(Criteria.ACCURACY_FINE);
-                            criteria.setPowerRequirement(Criteria.POWER_MEDIUM);
-                            String provider = lm.getBestProvider(criteria, true);
-                            Location location = lm.getLastKnownLocation(provider);
-                            lat = location.getLatitude();
-                            lng = location.getLongitude();
-                        }
-                        try {
-                            voiceSender.sentVoice(sendFile, getDefaultLanguageCode(), lat, lng, recordSampleRate);
-                        } catch (IOException e) {
-                            if (BuildConfig.DEBUG) {
-                                Log.d(TAG, "unable to send voice data to backend due to " + e.getLocalizedMessage());
-                            }
-                        } finally {
-                            sendFile.delete();
+                        if (BuildConfig.DEBUG) {
+                            Log.d(TAG, "unable to close output temporary wave file due to " + e.getLocalizedMessage());
                         }
                     }
+                    new BackgroundTask(recordSampleRate).execute(getApplicationContext());
                 }
             }
         };
@@ -210,13 +187,14 @@ public class VoiceRecorderService extends Service {
      */
     public void stopRecordVoice() {
         if (voiceRecorder != null) {
+            Log.d("KAKA>>>", "Stop voice recorder");
             voiceRecorder.stop();
             voiceRecorder = null;
         }
     }
 
     // get default language of the device. This may use to define person origin language
-    private String getDefaultLanguageCode() {
+    private static String getDefaultLanguageCode() {
         final Locale locale = Locale.getDefault();
         final StringBuilder language = new StringBuilder(locale.getLanguage());
         final String country = locale.getCountry();
@@ -225,6 +203,50 @@ public class VoiceRecorderService extends Service {
             language.append(country);
         }
         return language.toString();
+    }
+
+    private static class BackgroundTask extends AsyncTask<Context, Void, Void> {
+
+        private int recordSampleRate;
+
+        BackgroundTask(int sampleRate) {
+            recordSampleRate = sampleRate;
+        }
+
+        @Override
+        protected Void doInBackground(Context... ctxs) {
+            Context ctx = ctxs[0];
+            // set send the file
+            File file = new File(ctx.getCacheDir(), "aimmatic-audio.wav");
+            File sendFile = new File(ctx.getCacheDir(), System.currentTimeMillis() + ".wav");
+            if (file.renameTo(sendFile))
+
+            {
+                VoiceSender voiceSender = new VoiceSender(new AndroidAppContext(ctx));
+                int permission = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION);
+                double lat = 0, lng = 0;
+                if (permission == PackageManager.PERMISSION_GRANTED) {
+                    LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+                    Criteria criteria = new Criteria();
+                    criteria.setAccuracy(Criteria.ACCURACY_FINE);
+                    criteria.setPowerRequirement(Criteria.POWER_MEDIUM);
+                    String provider = lm.getBestProvider(criteria, true);
+                    Location location = lm.getLastKnownLocation(provider);
+                    lat = location.getLatitude();
+                    lng = location.getLongitude();
+                }
+                try {
+                    voiceSender.sentVoice(sendFile, getDefaultLanguageCode(), lat, lng, recordSampleRate);
+                } catch (IOException e) {
+                    if (BuildConfig.DEBUG) {
+                        Log.d(TAG, "unable to send voice data to backend due to " + e.getLocalizedMessage());
+                    }
+                } finally {
+                    sendFile.delete();
+                }
+            }
+            return null;
+        }
     }
 
 }
