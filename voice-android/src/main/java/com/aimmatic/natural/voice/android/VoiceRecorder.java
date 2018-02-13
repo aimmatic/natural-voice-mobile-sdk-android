@@ -234,33 +234,35 @@ public class VoiceRecorder {
                         break;
                     }
                     final int size = audioRecord.read(buffer, 0, buffer.length);
-                    final long now = System.currentTimeMillis();
-                    if (isHearingVoice(buffer, size)) {
-                        if (voiceHeardMillis == Long.MAX_VALUE) {
-                            voiceStartStartedMillis = now;
-                            eventListener.onRecordStart();
-                            if (VoiceRecorder.this.encodingType == VOICE_ENCODE_AS_FLAC) {
-                                libFlac.initialize(VoiceRecorder.this.getSampleRate(), 1,
-                                        16, VoiceRecorder.this.sizeInBytes, 5);
+                    if (size > 0) {
+                        final long now = System.currentTimeMillis();
+                        if (isHearingVoice(buffer, size)) {
+                            if (voiceHeardMillis == Long.MAX_VALUE) {
+                                voiceStartStartedMillis = now;
+                                eventListener.onRecordStart();
+                                if (VoiceRecorder.this.encodingType == VOICE_ENCODE_AS_FLAC) {
+                                    libFlac.initialize(VoiceRecorder.this.getSampleRate(), 1,
+                                            16, 5);
+                                }
                             }
-                        }
-                        if (encodingType == VOICE_ENCODE_AS_FLAC) {
-                            libFlac.encode(buffer);
-                        } else {
-                            eventListener.onRecording(buffer, size);
-                        }
-                        voiceHeardMillis = now;
-                        if (now - voiceStartStartedMillis > MAX_SPEECH_LENGTH_MILLIS) {
-                            end();
-                        }
-                    } else if (voiceHeardMillis != Long.MAX_VALUE) {
-                        if (encodingType == VOICE_ENCODE_AS_FLAC) {
-                            libFlac.encode(buffer);
-                        } else {
-                            eventListener.onRecording(buffer, size);
-                        }
-                        if (now - voiceHeardMillis > SPEECH_TIMEOUT_MILLIS) {
-                            end();
+                            if (encodingType == VOICE_ENCODE_AS_FLAC) {
+                                libFlac.encode(buffer);
+                            } else {
+                                eventListener.onRecording(buffer, size);
+                            }
+                            voiceHeardMillis = now;
+                            if (now - voiceStartStartedMillis > MAX_SPEECH_LENGTH_MILLIS) {
+                                end();
+                            }
+                        } else if (voiceHeardMillis != Long.MAX_VALUE) {
+                            if (encodingType == VOICE_ENCODE_AS_FLAC) {
+                                libFlac.encode(buffer);
+                            } else {
+                                eventListener.onRecording(buffer, size);
+                            }
+                            if (now - voiceHeardMillis > SPEECH_TIMEOUT_MILLIS) {
+                                end();
+                            }
                         }
                     }
                 }

@@ -42,12 +42,8 @@ import java.util.ArrayList;
 import java.util.Locale;
 
 /**
- * <<<<<<< HEAD
  * This class represent voice recorder service, a service that record the speech and send
  * wave data to Placenext SDK to analise and process voice recognition.
- * =======
- * Created by veasna on 2/2/18.
- * >>>>>>> Initial Android Placenext SDK.
  */
 
 public class VoiceRecorderService extends Service {
@@ -114,20 +110,20 @@ public class VoiceRecorderService extends Service {
      * this method
      */
     public void startRecordVoice() {
-        this.startRecordVoice(VoiceRecorder.VOICE_ENCODE_AS_WAVE);
+        this.startRecordVoice(VoiceRecorder.VOICE_ENCODE_AS_FLAC);
     }
 
     /**
      * @param voiceEncoding
      */
-    public void startRecordVoice(int voiceEncoding) {
+    public void startRecordVoice(final int voiceEncoding) {
         if (voiceRecorder != null) {
             voiceRecorder.stop();
         }
         // internal voice recorder listener
         eventListener = new VoiceRecorder.EventListener() {
 
-            private FileOutputStream outWav;
+            private FileOutputStream outfile;
 
             /**
              * {@inheritDoc}
@@ -141,7 +137,8 @@ public class VoiceRecorderService extends Service {
                     }
                 }
                 try {
-                    outWav = new FileOutputStream(new File(getCacheDir(), "aimmatic-audio.wav"));
+                    String filename = "aimmatic-audio." + ((voiceEncoding == VoiceRecorder.VOICE_ENCODE_AS_FLAC) ? "flac" : "wav");
+                    outfile = new FileOutputStream(new File(getCacheDir(), filename));
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();
                 }
@@ -158,7 +155,7 @@ public class VoiceRecorderService extends Service {
                     }
                 }
                 try {
-                    outWav.write(data, 0, size);
+                    outfile.write(data, 0, size);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -174,15 +171,17 @@ public class VoiceRecorderService extends Service {
                         listener.onRecordEnd();
                     }
                 }
-                if (outWav != null) {
+                if (outfile != null) {
                     try {
-                        outWav.close();
+                        outfile.close();
                     } catch (IOException e) {
                         if (BuildConfig.DEBUG) {
                             Log.d(TAG, "unable to close output temporary wave file due to " + e.getLocalizedMessage());
                         }
                     }
-                    new BackgroundTask(recordSampleRate).execute(getApplicationContext());
+                    new BackgroundTask(recordSampleRate,
+                            "aimmatic-audio." + ((voiceEncoding == VoiceRecorder.VOICE_ENCODE_AS_FLAC) ? "flac" : "wav"))
+                            .execute(getApplicationContext());
                 }
             }
         };
@@ -198,9 +197,11 @@ public class VoiceRecorderService extends Service {
      */
     public void stopRecordVoice() {
         if (voiceRecorder != null) {
-            Log.d("KAKA>>>", "Stop voice recorder");
             voiceRecorder.stop();
             voiceRecorder = null;
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "stop voice recorder thread");
+            }
         }
     }
 
@@ -219,20 +220,20 @@ public class VoiceRecorderService extends Service {
     private static class BackgroundTask extends AsyncTask<Context, Void, Void> {
 
         private int recordSampleRate;
+        private String filename;
 
-        BackgroundTask(int sampleRate) {
+        BackgroundTask(int sampleRate, String filename) {
             recordSampleRate = sampleRate;
+            this.filename = filename;
         }
 
         @Override
         protected Void doInBackground(Context... ctxs) {
             Context ctx = ctxs[0];
             // set send the file
-            File file = new File(ctx.getCacheDir(), "aimmatic-audio.wav");
-            File sendFile = new File(ctx.getCacheDir(), System.currentTimeMillis() + ".wav");
-            if (file.renameTo(sendFile))
-
-            {
+            File file = new File(ctx.getCacheDir(), filename);
+            File sendFile = new File(ctx.getCacheDir(), System.currentTimeMillis() + "");
+            if (file.renameTo(sendFile)) {
                 VoiceSender voiceSender = new VoiceSender(new AndroidAppContext(ctx));
                 int permission = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION);
                 double lat = 0, lng = 0;

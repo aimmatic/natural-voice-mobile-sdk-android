@@ -59,15 +59,14 @@ public class LibFlac {
      * @param sampleRate    sample rate of audio
      * @param channel       channel of audio like digital or mono
      * @param bps           bit per second. Usually 16
-     * @param totalSample   estimate of total byte data sample
      * @param compressLevel a compression level for flac
      * @throws IllegalStateException throw when configuration is not valid
      */
-    public void initialize(int sampleRate, int channel, int bps, int totalSample, int compressLevel) throws IllegalStateException {
+    public void initialize(int sampleRate, int channel, int bps, int compressLevel) throws IllegalStateException {
         this.channel = channel;
         this.cPointer = this.init();
         state = STATE_INITIALIZED;
-        if (setMetadata(cPointer, sampleRate, channel, bps, totalSample, compressLevel) == 0) {
+        if (setMetadata(cPointer, sampleRate, channel, bps, compressLevel) == 0) {
             throw new IllegalStateException("unable to set wave format metadata.");
         }
     }
@@ -126,6 +125,20 @@ public class LibFlac {
         this.finish(cPointer);
     }
 
+    /**
+     * convert raw wave pcm into flac file. Input file must be a raw pcm, a wave raw data with header format.
+     * In Android this raw PCM should take directly from AudioRecode class in Java.
+     *
+     * @param fileIn       path to a file with a raw pcm binary data
+     * @param fileOut      a path where flac should be written to
+     * @param channel      a number of channel of raw pcm. e.g Mono or Stereo
+     * @param sampleRate   a sample rate of raw pcm data
+     * @param bitPerSecond a number of bit per second
+     * @param compression  flac compression level
+     */
+    public static native void convertRawPCM(String fileIn, String fileOut,
+                                            int channel, int sampleRate, int bitPerSecond, int compression);
+
     /*
      * release native resource with given pointer
      */
@@ -150,6 +163,6 @@ public class LibFlac {
     /*
      * set metadata of current audio wave
      */
-    private native int setMetadata(long cPointer, int sampleRate, int channel, int bps, int totalSample, int compressLevel);
+    private native int setMetadata(long cPointer, int sampleRate, int channel, int bps, int compressLevel);
 
 }
