@@ -1,14 +1,18 @@
-# Placenext SDK For Android #
+# Natural Voice Mobile SDK For Android #
 
-This library allows you to integrate Placenext Natural Voice into your Android app.
+This library allows you to integrate Natural Voice functions into your Android app.
+
+Requires API key. For a free API key you may contact our solution desk. Please allow up to 24 hours for response.
+solution.desk@aimmatic.com
 
 # Feature #
 
-- [Natural Voice](https://console.aimmatic.com/docs/natural/voice)
+Link to frontend mockup:
+- [Natural Voice Mobile](http://www.aimmatic.com/natural-voice.html)
 
 # Usage #
 
-## Setup Placenext SDK dependency ##
+## Setup Natural Voice SDK dependency ##
 
 ```gradle
 dependencies {
