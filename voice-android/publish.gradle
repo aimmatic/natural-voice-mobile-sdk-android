@@ -1,7 +1,7 @@
 apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.bintray'
 
-version '0.1.1'
+version '1.0.0'
 group 'com.aimmatic.natural'
 
 publishing {
@@ -37,14 +37,15 @@ bintray {
     configurations = ['archives']
     override = true
     pkg {
-        repo = 'com.aimmatic.natural'
+        repo = 'natural-voice'
         name = 'Natural Voice Mobile SDK'
         description = "AimMatic Natural Voice Mobile SDK."
-        publish = true
         publicDownloadNumbers = true
         licenses = ['Apache-2.0']
         vcsUrl = 'https://github.com/aimmatic/natural-voice-mobile-sdk-android.git'
+        publish = true
         dryRun = true
+        override = false
         version {
             name = this.version
             desc = "Natural Voice Mobile SDK ${this.version}"

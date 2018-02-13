@@ -108,13 +108,7 @@ public class LibFlac {
      */
     public void release() {
         if (state != STATE_UNINITIALIZED) {
-            new AsyncTask<Void, Void, Void>() {
-                @Override
-                protected Void doInBackground(Void... voids) {
-                    LibFlac.this.release(cPointer);
-                    return null;
-                }
-            }.execute();
+            new ReleaseTask(this).execute();
         }
     }
 
@@ -164,5 +158,19 @@ public class LibFlac {
      * set metadata of current audio wave
      */
     private native int setMetadata(long cPointer, int sampleRate, int channel, int bps, int compressLevel);
+
+    private static class ReleaseTask extends AsyncTask<Void, Void, Void> {
+        private LibFlac libFlac;
+
+        ReleaseTask(LibFlac libFlac) {
+            this.libFlac = libFlac;
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            this.libFlac.release(libFlac.cPointer);
+            return null;
+        }
+    }
 
 }
