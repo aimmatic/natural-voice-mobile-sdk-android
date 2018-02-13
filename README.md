@@ -16,7 +16,7 @@ Link to frontend mockup:
 
 ```gradle
 dependencies {
-    compile 'com.aimmatic.natural:voice-android:0.1.0'
+    compile 'com.aimmatic.natural:voice-android:0.1.1'
 }
 ```
 
