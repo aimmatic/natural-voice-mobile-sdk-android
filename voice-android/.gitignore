@@ -1,3 +1,7 @@
 /build
 /src/main/libs
+<<<<<<< HEAD
 /src/main/obj
+=======
+/src/main/obj
+>>>>>>> Add sample and libflac
