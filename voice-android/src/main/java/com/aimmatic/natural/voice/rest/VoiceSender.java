@@ -18,6 +18,7 @@ import com.aimmatic.natural.core.rest.AppContext;
 import java.io.File;
 import java.io.IOException;
 
+import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -53,10 +54,10 @@ public class VoiceSender {
      * @return Response from Placenext Api
      * @throws IOException
      */
-    public Response sentVoice(File file, String deviceLang, double lat, double lng, int sampleRate) throws IOException {
+    public Response sentVoice(File file, MediaType mediaType, String deviceLang, double lat, double lng, int sampleRate) throws IOException {
         OkHttpClient client = appContext.getOkHttpClient();
         MultipartBody.Builder buidler = new MultipartBody.Builder().setType(MultipartBody.FORM)
-                .addFormDataPart("uploadFile", "natural-voice.wav", RequestBody.create(Resources.MEDIA_TYPE_WAVE, file))
+                .addFormDataPart("uploadFile", file.getName(), RequestBody.create(mediaType, file))
                 .addFormDataPart("deviceLanguage", deviceLang)
                 .addFormDataPart("sampleRate", "" + sampleRate);
         // don't add it lat,lng 0

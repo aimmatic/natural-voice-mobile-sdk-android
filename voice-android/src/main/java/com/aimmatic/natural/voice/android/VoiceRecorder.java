@@ -38,8 +38,6 @@ public class VoiceRecorder {
     private static final int AMPLITUDE_THRESHOLD = 1500;
     // 2 second if no speech detected if it will automatically end the record
     private static final int SPEECH_TIMEOUT_MILLIS = 2000;
-    // 29 second after continue to header the speech, the recorder will automatically end the record
-    private static final int MAX_SPEECH_LENGTH_MILLIS = 29 * 1000;
 
     /**
      * encode audio as wave pcm 16 bit
@@ -94,6 +92,7 @@ public class VoiceRecorder {
     //
     private final int encodingType;
 
+    private long maxSpeech;
     private long voiceHeardMillis = Long.MAX_VALUE;
     private long voiceStartStartedMillis;
 
@@ -101,10 +100,16 @@ public class VoiceRecorder {
      * Create a new voice recorder object. It you decide to use this class directly you make sure to
      * stop the recorder during device rotation otherwise leak or crash can happen.
      *
+     * @param speechLength  a maximum speech length in second, must be greater than 0 otherwise default length 29 second is set.
      * @param encodingType  encode type
      * @param eventListener voice recorder event listener
      */
-    public VoiceRecorder(int encodingType, EventListener eventListener) {
+    public VoiceRecorder(int speechLength, int encodingType, EventListener eventListener) {
+        if (speechLength <= 0) {
+            this.maxSpeech = 29 * 1000;
+        } else {
+            this.maxSpeech = speechLength * 1000;
+        }
         this.encodingType = encodingType;
         this.eventListener = eventListener;
     }
@@ -251,7 +256,7 @@ public class VoiceRecorder {
                                 eventListener.onRecording(buffer, size);
                             }
                             voiceHeardMillis = now;
-                            if (now - voiceStartStartedMillis > MAX_SPEECH_LENGTH_MILLIS) {
+                            if (now - voiceStartStartedMillis > maxSpeech) {
                                 end();
                             }
                         } else if (voiceHeardMillis != Long.MAX_VALUE) {

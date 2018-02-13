@@ -32,6 +32,8 @@ import android.util.Log;
 
 import com.aimmatic.natural.BuildConfig;
 import com.aimmatic.natural.core.rest.AndroidAppContext;
+import com.aimmatic.natural.voice.rest.Language;
+import com.aimmatic.natural.voice.rest.Resources;
 import com.aimmatic.natural.voice.rest.VoiceSender;
 
 import java.io.File;
@@ -40,6 +42,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Locale;
+
+import okhttp3.MediaType;
 
 /**
  * This class represent voice recorder service, a service that record the speech and send
@@ -107,16 +111,25 @@ public class VoiceRecorderService extends Service {
 
     /**
      * Start a voice recorder. Caller must check the record voice permission first before calling
-     * this method
+     * this method. Flac will be use as default voice encoding.
+     *
+     * @param speechLength a maximum length of speech can be recorded. if length value is 0 or negative, default length of 24 second is used.
+     * @param language     a language of BCP-47 code. Get the language from {@link com.aimmatic.natural.voice.rest.Language#bcp47Code}
      */
-    public void startRecordVoice() {
-        this.startRecordVoice(VoiceRecorder.VOICE_ENCODE_AS_FLAC);
+    public void startRecordVoice(int speechLength, String language) {
+        this.startRecordVoice(speechLength, language, VoiceRecorder.VOICE_ENCODE_AS_FLAC);
     }
 
     /**
-     * @param voiceEncoding
+     * Start a voice recorder. Caller must check the record voice permission first before calling
+     * this method.
+     *
+     * @param speechLength  a maximum length of speech can be recorded. if length value is 0 or negative, default length of 24 second is used.
+     * @param language      a language of BCP-47 code. Get the language from {@link Language#getBcp47Code()}
+     * @param voiceEncoding a voice encode type from {@link com.aimmatic.natural.voice.android.VoiceRecorder#VOICE_ENCODE_AS_WAVE}
+     *                      or {@link com.aimmatic.natural.voice.android.VoiceRecorder#VOICE_ENCODE_AS_FLAC}
      */
-    public void startRecordVoice(final int voiceEncoding) {
+    public void startRecordVoice(int speechLength, final String language, final int voiceEncoding) {
         if (voiceRecorder != null) {
             voiceRecorder.stop();
         }
@@ -179,13 +192,12 @@ public class VoiceRecorderService extends Service {
                             Log.d(TAG, "unable to close output temporary wave file due to " + e.getLocalizedMessage());
                         }
                     }
-                    new BackgroundTask(recordSampleRate,
-                            "aimmatic-audio." + ((voiceEncoding == VoiceRecorder.VOICE_ENCODE_AS_FLAC) ? "flac" : "wav"))
+                    new BackgroundTask(recordSampleRate, language, voiceEncoding)
                             .execute(getApplicationContext());
                 }
             }
         };
-        voiceRecorder = new VoiceRecorder(voiceEncoding, eventListener);
+        voiceRecorder = new VoiceRecorder(speechLength, voiceEncoding, eventListener);
         if (BuildConfig.DEBUG) {
             Log.d(TAG, "start voice recorder thread");
         }
@@ -205,8 +217,12 @@ public class VoiceRecorderService extends Service {
         }
     }
 
-    // get default language of the device. This may use to define person origin language
-    private static String getDefaultLanguageCode() {
+    /**
+     * get default language of the device. This may use to define person origin language
+     *
+     * @return language code of the device
+     */
+    public static String getDefaultLanguageCode() {
         final Locale locale = Locale.getDefault();
         final StringBuilder language = new StringBuilder(locale.getLanguage());
         final String country = locale.getCountry();
@@ -220,17 +236,20 @@ public class VoiceRecorderService extends Service {
     private static class BackgroundTask extends AsyncTask<Context, Void, Void> {
 
         private int recordSampleRate;
-        private String filename;
+        private int voiceEncoding;
+        private String language;
 
-        BackgroundTask(int sampleRate, String filename) {
+        BackgroundTask(int sampleRate, String language, int encodingType) {
             recordSampleRate = sampleRate;
-            this.filename = filename;
+            this.language = language;
+            this.voiceEncoding = encodingType;
         }
 
         @Override
         protected Void doInBackground(Context... ctxs) {
             Context ctx = ctxs[0];
             // set send the file
+            String filename = "aimmatic-audio." + ((voiceEncoding == VoiceRecorder.VOICE_ENCODE_AS_FLAC) ? "flac" : "wav");
             File file = new File(ctx.getCacheDir(), filename);
             File sendFile = new File(ctx.getCacheDir(), System.currentTimeMillis() + "");
             if (file.renameTo(sendFile)) {
@@ -248,7 +267,11 @@ public class VoiceRecorderService extends Service {
                     lng = location.getLongitude();
                 }
                 try {
-                    voiceSender.sentVoice(sendFile, getDefaultLanguageCode(), lat, lng, recordSampleRate);
+                    MediaType mediaType = Resources.MEDIA_TYPE_FLAC;
+                    if (voiceEncoding == VoiceRecorder.VOICE_ENCODE_AS_WAVE) {
+                        mediaType = Resources.MEDIA_TYPE_WAVE;
+                    }
+                    voiceSender.sentVoice(sendFile, mediaType, language, lat, lng, recordSampleRate);
                 } catch (IOException e) {
                     if (BuildConfig.DEBUG) {
                         Log.d(TAG, "unable to send voice data to backend due to " + e.getLocalizedMessage());

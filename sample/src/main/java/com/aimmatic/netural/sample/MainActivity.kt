@@ -14,6 +14,7 @@ import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import com.aimmatic.natural.voice.android.VoiceRecorder
 import com.aimmatic.natural.voice.android.VoiceRecorderService
+import com.aimmatic.natural.voice.rest.Language
 import kotlinx.android.synthetic.main.activity_main.*
 
 
@@ -76,13 +77,17 @@ class MainActivity : AppCompatActivity() {
                 if (requestCode == REQUEST_RECORD_AUDIO_CODE &&
                         !grantResults.isEmpty() &&
                         grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    voiceRecorderService?.startRecordVoice()
+                    // default 29 second and language is "en_US"
+                    voiceRecorderService?.startRecordVoice(0,
+                            Language.getAllSupportedLanguage()[0].bcp47Code)
                 }
             }
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO_CODE)
             return
         }
-        voiceRecorderService?.startRecordVoice()
+        // default 29 second and language is "en_US"
+        voiceRecorderService?.startRecordVoice(0,
+                Language.getAllSupportedLanguage()[0].bcp47Code)
     }
 
     private fun stopListen() {

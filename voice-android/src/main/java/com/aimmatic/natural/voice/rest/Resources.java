@@ -25,5 +25,6 @@ public interface Resources {
     String NaturalVoice = "/natural/voice";
 
     MediaType MEDIA_TYPE_WAVE = MediaType.parse("audio/wav");
+    MediaType MEDIA_TYPE_FLAC = MediaType.parse("audio/flac");
 
 }
