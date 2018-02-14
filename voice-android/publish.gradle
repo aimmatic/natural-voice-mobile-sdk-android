@@ -38,22 +38,21 @@ bintray {
     override = true
     pkg {
         repo = 'natural-voice'
-        name = 'Natural Voice Mobile SDK'
+        name = 'com.aimmatic.natural'
         description = "AimMatic Natural Voice Mobile SDK."
         publicDownloadNumbers = true
         licenses = ['Apache-2.0']
         vcsUrl = 'https://github.com/aimmatic/natural-voice-mobile-sdk-android.git'
         publish = true
-        dryRun = true
-        override = false
+        dryRun = false
         version {
             name = this.version
             desc = "Natural Voice Mobile SDK ${this.version}"
             released = new Date()
             vcsTag = this.version
             gpg {
-                sign = true //Determines whether to GPG sign the files. The default is false
-                passphrase = project.hasProperty('BINTRAY_GPG_PASSWORD') ?: System.getenv('BINTRAY_GPG_PASSWORD') //Optional. The passphrase for GPG signing'
+                sign = true
+                passphrase = project.hasProperty('BINTRAY_GPG_PASSWORD') ?: System.getenv('BINTRAY_GPG_PASSWORD')
             }
         }
     }
