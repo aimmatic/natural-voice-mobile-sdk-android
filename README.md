@@ -2,8 +2,13 @@
 
 This library allows you to integrate Natural Voice functions into your Android app.
 
-Requires API key. For a free API key you may contact our solution desk. Please allow up to 24 hours for response.
-solution.desk@aimmatic.com
+Requires API key. For a free API key you may contact our solution desk.
+
+https://www.aimmatic.com/solution-desk.html
+
+mailto:solution.desk@aimmatic.com
+
+Please allow a few hours for a response.
 
 # Feature #
 
