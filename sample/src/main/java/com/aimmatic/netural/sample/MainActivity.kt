@@ -92,7 +92,7 @@ class MainActivity : AppCompatActivity() {
                         grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     // default 29 second and language is "en_US"
                     voiceRecorderService?.startRecordVoice(0,
-                            Language.getAllSupportedLanguage()[0].bcp47Code)
+                            Language.getAllSupportedLanguage()[1].bcp47Code)
                 }
             }
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO_CODE)

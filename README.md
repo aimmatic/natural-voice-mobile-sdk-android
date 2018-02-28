@@ -43,6 +43,9 @@ Add Service into your application
 <service android:name="com.aimmatic.natural.voice.android.VoiceRecorderService" />
 ```
 
+**Note:** The SDK required permission "**android.permission.RECORD_AUDIO**" to be granted before
+you can start record the voice.
+
 ## Add Kotlin Code ##
 
 Declare variable voice recorder service
@@ -88,8 +91,10 @@ override fun onStop() {
 }
 ```
 
-Start audio recorder
+Start a maximum 24 seconds of voice recoding with english
 
 ```kotlin
-voiceRecorderService?.startRecordVoice()
+voiceRecorderService?.startRecordVoice(24, "en_US")
 ```
+
+Note: Language can be choose from **com.aimmatic.natural.voice.rest.Language**
