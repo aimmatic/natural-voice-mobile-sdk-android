@@ -4,10 +4,30 @@ apply plugin: 'com.jfrog.bintray'
 version '1.0.0'
 group 'com.aimmatic.natural'
 
+task sourceJar(type: Jar) {
+    classifier 'sources'
+    from android.sourceSets.main.java.srcDirs
+}
+
+task javadoc(type: Javadoc) {
+    failOnError false
+    source = android.sourceSets.main.java.sourceFiles
+    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+    classpath += configurations.compile
+}
+
+// build a jar with javadoc
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
 publishing {
     publications {
         Production(MavenPublication) {
             artifact("$buildDir/outputs/aar/voice-android-release.aar")
+            artifact(sourceJar)
+            artifact(javadocJar)
             groupId this.group
             artifactId 'voice-android'
             version this.version
