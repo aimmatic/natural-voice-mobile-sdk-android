@@ -13,8 +13,6 @@ limitations under the License.
 
 package com.aimmatic.natural.voice.android;
 
-import android.os.AsyncTask;
-
 /**
  * LibFlac java native jni interface to convert raw wav pcm 16 bit binary into flac format.
  */
@@ -108,7 +106,7 @@ public class LibFlac {
      */
     public void release() {
         if (state != STATE_UNINITIALIZED) {
-            new ReleaseTask(this).execute();
+            release(cPointer);
         }
     }
 
@@ -158,19 +156,5 @@ public class LibFlac {
      * set metadata of current audio wave
      */
     private native int setMetadata(long cPointer, int sampleRate, int channel, int bps, int compressLevel);
-
-    private static class ReleaseTask extends AsyncTask<Void, Void, Void> {
-        private LibFlac libFlac;
-
-        ReleaseTask(LibFlac libFlac) {
-            this.libFlac = libFlac;
-        }
-
-        @Override
-        protected Void doInBackground(Void... voids) {
-            this.libFlac.release(libFlac.cPointer);
-            return null;
-        }
-    }
 
 }

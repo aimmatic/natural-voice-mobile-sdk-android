@@ -24,10 +24,9 @@ import android.os.IBinder
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
-import android.util.Log
-import com.aimmatic.natural.voice.android.VoiceRecorder
 import com.aimmatic.natural.voice.android.VoiceRecorderService
 import com.aimmatic.natural.voice.rest.Language
+import com.aimmatic.natural.voice.rest.response.VoiceResponse
 import kotlinx.android.synthetic.main.activity_main.*
 
 
@@ -48,19 +47,19 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    private val eventListener: VoiceRecorder.EventListener = object : VoiceRecorder.EventListener() {
+    private val eventListener: VoiceRecorderService.VoiceRecorderCallback = object : VoiceRecorderService.VoiceRecorderCallback() {
 
         override fun onRecordStart() {
-            Log.d(">>>", "Start recorded")
         }
 
         override fun onRecording(data: ByteArray?, size: Int) {
-            Log.d(">>>", "Recorded buff")
         }
 
         override fun onRecordEnd() {
-            Log.d(">>>", "End recorded")
             record.setImageResource(R.drawable.ic_mic_black_24dp)
+        }
+
+        override fun onVoiceSent(response: VoiceResponse?) {
         }
 
     }
@@ -91,16 +90,14 @@ class MainActivity : AppCompatActivity() {
                         !grantResults.isEmpty() &&
                         grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     // default 29 second and language is "en_US"
-                    voiceRecorderService?.startRecordVoice(0,
-                            Language.getAllSupportedLanguage()[1].bcp47Code)
+                    voiceRecorderService?.startRecordVoice(10, Language.getAllSupportedLanguage()[1].bcp47Code)
                 }
             }
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO_CODE)
             return
         }
         // default 29 second and language is "en_US"
-        voiceRecorderService?.startRecordVoice(0,
-                Language.getAllSupportedLanguage()[0].bcp47Code)
+        voiceRecorderService?.startRecordVoice(10, Language.getAllSupportedLanguage()[1].bcp47Code)
     }
 
     private fun stopListen() {
@@ -110,18 +107,6 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         bindService(Intent(this, VoiceRecorderService::class.java), serviceConnection, Context.BIND_AUTO_CREATE)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        var permission = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        if (permission != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 1)
-        }
-        permission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-        if (permission != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 1)
-        }
     }
 
     override fun onStop() {

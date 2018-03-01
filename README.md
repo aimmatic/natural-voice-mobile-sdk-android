@@ -23,7 +23,7 @@ Natural Voice Mobile SDK required **Android 4.1+**.
 
 ```gradle
 dependencies {
-    implementation 'com.aimmatic.natural:voice-android:1.0.0'
+    implementation 'com.aimmatic.natural:voice-android:1.0.1'
 }
 ```
 
@@ -52,6 +52,24 @@ Declare variable voice recorder service
 
 ```kotlin
 private var voiceRecorderService: VoiceRecorderService? = null
+```
+
+Create voice recorder listener
+
+```kotlin
+private val eventListener: VoiceRecorderService.VoiceRecorderCallback = object : VoiceRecorderService.VoiceRecorderCallback() {
+    override fun onRecordStart() {
+    }
+
+    override fun onRecording(data: ByteArray?, size: Int) {
+    }
+
+    override fun onRecordEnd() {
+    }
+
+    override fun onVoiceSent(response: VoiceResponse?) {
+    }
+}
 ```
 
 Create service connection
@@ -97,4 +115,61 @@ Start a maximum 24 seconds of voice recoding with english
 voiceRecorderService?.startRecordVoice(24, "en_US")
 ```
 
+Voice Recording service will throw a RuntimeException if it cannot initiate
+AudioRecord class which use to record audio.
+
 Note: Language can be choose from **com.aimmatic.natural.voice.rest.Language**
+
+The SDK only record the audio data when it detected that there was a voice in
+ audio data otherwise audio data that provided by AudioRecord class will
+be ignored. The maximum duration of voice recording is not the total duration from
+ start recording until the end but it a total duration from hearing the voice until the end.
+
+The SDK will stop the record it cannot hear the voice for 2 seconds.
+
+### Listening to recording ###
+
+The EventListener provide a callback that allow application to interacted
+with UI.
+
+```kotlin
+override fun onRecordStart() {
+}
+```
+
+The function call immediately as soon as SDK hearing the voice from audio streaming
+data provided by AudioRecord class.
+
+```kotlin
+override fun onRecording(data: ByteArray?, size: Int) {
+}
+```
+
+The function call when SDK detected the voice from audio streaming data
+provided by AudioRecord class. The size represent the actual byte array in the data.
+Where the data represent the binary audio format of FLAC or WAVE depending on
+the setting when you start `startRecordVoice`. By default, The SDK will record audio
+as FLAC audio format.
+
+This function can be use to update the UI as voice record is currently happening.
+
+```kotlin
+override fun onRecordEnd() {
+}
+```
+
+The function call when SDK reach the maximum duration or user stop recording manually
+by calling function `voiceRecorderService?.stopRecordVoice()`.
+
+This function can be use to update the UI as voice record finish. The SDK will automatically
+send the audio data the server. **However SDK will not notify whether the audio send was successful or
+audio processing has been done.**
+
+```kotlin
+override fun onVoiceSent(response: VoiceResponse?) {
+}
+```
+
+The function call after SDK send the voice data to the server. If voice successfully receive by
+the server the response will contain the voice id otherwise a none 0 response code is provided which
+indicate the server is unable to receive the voice data.

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.aimmatic.netural.sample">
+    package="com.aimmatic.natural.sample.java">
 
-    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.INTERNET"></uses-permission>
 
     <application
         tools:ignore="GoogleAppIndexingWarning"
@@ -18,7 +18,7 @@
             android:name="com.aimmatic.natural.voice.apikey"
             android:value="YOUR API KEY" />
 
-        <activity android:name="com.aimmatic.netural.sample.MainActivity">
+        <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -26,9 +26,8 @@
             </intent-filter>
         </activity>
 
-        <service
-            android:name="com.aimmatic.natural.voice.android.VoiceRecorderService"
-            android:exported="false" />
+        <service android:name="com.aimmatic.natural.voice.android.VoiceRecorderService" />
+
     </application>
 
 </manifest>

@@ -71,7 +71,6 @@ public class VoiceSender {
                 .post(requestBody)
                 .build();
         Response response = client.newCall(request).execute();
-        if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
         return response;
     }
 

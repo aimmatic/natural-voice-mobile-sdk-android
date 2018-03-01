@@ -8,8 +8,9 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/voice-android" />
             <option value="$PROJECT_DIR$/sample" />
+            <option value="$PROJECT_DIR$/sample-java" />
+            <option value="$PROJECT_DIR$/voice-android" />
           </set>
         </option>
         <option name="resolveModulePerSourceSet" value="false" />

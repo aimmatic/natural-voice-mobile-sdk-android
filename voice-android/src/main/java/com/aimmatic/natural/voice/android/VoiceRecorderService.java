@@ -20,9 +20,12 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Criteria;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
-import android.os.AsyncTask;
 import android.os.Binder;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -30,11 +33,14 @@ import android.support.v4.content.ContextCompat;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.aimmatic.natural.BuildConfig;
 import com.aimmatic.natural.core.rest.AndroidAppContext;
 import com.aimmatic.natural.voice.rest.Language;
 import com.aimmatic.natural.voice.rest.Resources;
 import com.aimmatic.natural.voice.rest.VoiceSender;
+import com.aimmatic.natural.voice.rest.response.Status;
+import com.aimmatic.natural.voice.rest.response.VoiceResponse;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -44,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Locale;
 
 import okhttp3.MediaType;
+import okhttp3.Response;
 
 /**
  * This class represent voice recorder service, a service that record the speech and send
@@ -73,8 +80,8 @@ public class VoiceRecorderService extends Service {
 
     }
 
-    // list of listener event
-    private final ArrayList<VoiceRecorder.EventListener> listeners = new ArrayList<>();
+    // list of listeners event
+    private final ArrayList<VoiceRecorderCallback> listeners = new ArrayList<>();
     // binder
     private AudioRecordBinder binder = new AudioRecordBinder();
 
@@ -92,18 +99,18 @@ public class VoiceRecorderService extends Service {
     }
 
     /**
-     * Add voice recorder listener
+     * Add voice recorder listeners
      *
-     * @param listener voice recorder listener
+     * @param listener voice recorder listeners
      */
-    public void addListener(@NonNull VoiceRecorder.EventListener listener) {
+    public void addListener(@NonNull VoiceRecorderCallback listener) {
         listeners.add(listener);
     }
 
     /**
-     * Remove voice recorder listener if existed
+     * Remove voice recorder listeners if existed
      *
-     * @param listener voice recorder listener
+     * @param listener voice recorder listeners
      */
     public void removeListener(@NonNull VoiceRecorder.EventListener listener) {
         listeners.remove(listener);
@@ -133,7 +140,7 @@ public class VoiceRecorderService extends Service {
         if (voiceRecorder != null) {
             voiceRecorder.stop();
         }
-        // internal voice recorder listener
+        // internal voice recorder listeners
         eventListener = new VoiceRecorder.EventListener() {
 
             private FileOutputStream outfile;
@@ -188,19 +195,17 @@ public class VoiceRecorderService extends Service {
                     try {
                         outfile.close();
                     } catch (IOException e) {
-                        if (BuildConfig.DEBUG) {
-                            Log.d(TAG, "unable to close output temporary wave file due to " + e.getLocalizedMessage());
-                        }
+                        Log.d(TAG, "unable to close output temporary (wave,flac) file due to " + e.getLocalizedMessage());
                     }
-                    new BackgroundTask(recordSampleRate, language, voiceEncoding)
-                            .execute(getApplicationContext());
+                    BackgroundTask bt = new BackgroundTask(recordSampleRate, language, voiceEncoding, getApplicationContext(), listeners);
+                    bt.start();
+                    bt.sendVoice();
                 }
+                voiceRecorder = null;
             }
         };
         voiceRecorder = new VoiceRecorder(speechLength, voiceEncoding, eventListener);
-        if (BuildConfig.DEBUG) {
-            Log.d(TAG, "start voice recorder thread");
-        }
+        Log.d(TAG, "start voice recorder thread");
         voiceRecorder.start();
     }
 
@@ -211,9 +216,7 @@ public class VoiceRecorderService extends Service {
         if (voiceRecorder != null) {
             voiceRecorder.stop();
             voiceRecorder = null;
-            if (BuildConfig.DEBUG) {
-                Log.d(TAG, "stop voice recorder thread");
-            }
+            Log.d(TAG, "stop voice recorder thread");
         }
     }
 
@@ -233,55 +236,121 @@ public class VoiceRecorderService extends Service {
         return language.toString();
     }
 
-    private static class BackgroundTask extends AsyncTask<Context, Void, Void> {
+    /**
+     *
+     */
+    public static abstract class VoiceRecorderCallback extends VoiceRecorder.EventListener {
+
+        /**
+         *
+         */
+        public void onVoiceSent(VoiceResponse response) {
+        }
+
+    }
+
+    private static class BackgroundTask extends HandlerThread {
 
         private int recordSampleRate;
         private int voiceEncoding;
         private String language;
+        private Context ctx;
+        private ArrayList<VoiceRecorderCallback> listeners;
 
-        BackgroundTask(int sampleRate, String language, int encodingType) {
+        BackgroundTask(int sampleRate, String language, int encodingType, Context ctx, ArrayList<VoiceRecorderCallback> listener) {
+            super("voice-sender");
             recordSampleRate = sampleRate;
             this.language = language;
             this.voiceEncoding = encodingType;
+            this.ctx = ctx;
+            this.listeners = listener;
         }
 
-        @Override
-        protected Void doInBackground(Context... ctxs) {
-            Context ctx = ctxs[0];
+        public void sendVoice() {
+            new Handler(getLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    doInBackground();
+                    quit();
+                }
+            });
+        }
+
+        private Void doInBackground() {
             // set send the file
             String filename = "aimmatic-audio." + ((voiceEncoding == VoiceRecorder.VOICE_ENCODE_AS_FLAC) ? "flac" : "wav");
             File file = new File(ctx.getCacheDir(), filename);
-            File sendFile = new File(ctx.getCacheDir(), System.currentTimeMillis() + "");
+            final File sendFile = new File(ctx.getCacheDir(), System.currentTimeMillis() + "");
             if (file.renameTo(sendFile)) {
-                VoiceSender voiceSender = new VoiceSender(new AndroidAppContext(ctx));
                 int permission = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION);
-                double lat = 0, lng = 0;
+                double lat = 0;
+                double lng = 0;
                 if (permission == PackageManager.PERMISSION_GRANTED) {
                     LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
                     Criteria criteria = new Criteria();
                     criteria.setAccuracy(Criteria.ACCURACY_FINE);
                     criteria.setPowerRequirement(Criteria.POWER_MEDIUM);
-                    String provider = lm.getBestProvider(criteria, true);
+                    final String provider = lm.getBestProvider(criteria, true);
                     Location location = lm.getLastKnownLocation(provider);
-                    lat = location.getLatitude();
-                    lng = location.getLongitude();
-                }
-                try {
-                    MediaType mediaType = Resources.MEDIA_TYPE_FLAC;
-                    if (voiceEncoding == VoiceRecorder.VOICE_ENCODE_AS_WAVE) {
-                        mediaType = Resources.MEDIA_TYPE_WAVE;
+                    if (location != null) {
+                        lat = location.getLatitude();
+                        lng = location.getLongitude();
+                    } else {
+                        lm.requestSingleUpdate(provider, new LocationListener() {
+                            @Override
+                            public void onLocationChanged(Location location) {
+                                if (location != null) {
+                                    send(sendFile, location.getLongitude(), location.getLongitude());
+                                }
+                            }
+
+                            @Override
+                            public void onStatusChanged(String provider, int status, Bundle extras) {
+                            }
+
+                            @Override
+                            public void onProviderEnabled(String provider) {
+                            }
+
+                            @Override
+                            public void onProviderDisabled(String provider) {
+                            }
+                        }, getLooper());
                     }
-                    voiceSender.sentVoice(sendFile, mediaType, language, lat, lng, recordSampleRate);
-                } catch (IOException e) {
-                    if (BuildConfig.DEBUG) {
-                        Log.d(TAG, "unable to send voice data to backend due to " + e.getLocalizedMessage());
-                    }
-                } finally {
-                    sendFile.delete();
                 }
+                send(sendFile, lat, lng);
             }
             return null;
         }
+
+        private void send(File sendFile, double lat, double lng) {
+            VoiceResponse voiceResponse = new VoiceResponse(null, new Status(-1, "unable to send audio to server", null));
+            try {
+                VoiceSender voiceSender = new VoiceSender(new AndroidAppContext(ctx));
+                MediaType mediaType = Resources.MEDIA_TYPE_FLAC;
+                if (voiceEncoding == VoiceRecorder.VOICE_ENCODE_AS_WAVE) {
+                    Log.d(TAG, "sending wave voice data");
+                    mediaType = Resources.MEDIA_TYPE_WAVE;
+                } else {
+                    Log.d(TAG, "sending flac voice data");
+                }
+                Response response = voiceSender.sentVoice(sendFile, mediaType, language, lat, lng, recordSampleRate);
+                Gson gson = new GsonBuilder().create();
+                String body = response.body().string();
+                voiceResponse = gson.fromJson(body, VoiceResponse.class);
+            } catch (IOException e) {
+                Log.d(TAG, "unable to send voice data to backend due to " + e.getLocalizedMessage());
+                voiceResponse = new VoiceResponse(null, new Status(-1, e.getMessage(), null));
+            } finally {
+                if (listeners != null) {
+                    for (VoiceRecorderCallback vrc : this.listeners) {
+                        vrc.onVoiceSent(voiceResponse);
+                    }
+                }
+                sendFile.delete();
+            }
+        }
+
     }
 
 }

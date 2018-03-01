@@ -16,9 +16,9 @@ package com.aimmatic.natural.voice.android;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.util.Log;
-
-import com.aimmatic.natural.BuildConfig;
 
 /**
  * This class represent an audio recorder. It record the speech into a wave format PCM 16 bit.
@@ -79,14 +79,15 @@ public class VoiceRecorder {
 
     //
     private AudioRecord audioRecord;
+
     //
-    private LibFlac libFlac;
     private int samplreRate;
     private int sizeInBytes;
     //
-    private Thread thread;
-    private byte[] buffer;
+    private HandlerThread thread;
+    private TransferFromAudioRecorder readAudioBuffer;
     private final Object lock = new Object();
+    private boolean stop;
     // internal callback
     private final EventListener eventListener;
     //
@@ -104,7 +105,7 @@ public class VoiceRecorder {
      * @param encodingType  encode type
      * @param eventListener voice recorder event listener
      */
-    public VoiceRecorder(int speechLength, int encodingType, EventListener eventListener) {
+    VoiceRecorder(int speechLength, int encodingType, EventListener eventListener) {
         if (speechLength <= 0) {
             this.maxSpeech = 29 * 1000;
         } else {
@@ -119,17 +120,6 @@ public class VoiceRecorder {
      */
     public void start() {
         stop();
-        if (encodingType == VOICE_ENCODE_AS_FLAC) {
-            libFlac = new LibFlac();
-            libFlac.setFlacEncodeCallback(new LibFlac.EncoderCallback() {
-                @Override
-                public void onEncoded(byte[] data, int sized) {
-                    if (eventListener != null) {
-                        eventListener.onRecording(data, sized);
-                    }
-                }
-            });
-        }
         audioRecord = createAudioRecord();
         if (audioRecord == null) {
             throw new RuntimeException("Cannot instantiate VoiceRecorder");
@@ -137,11 +127,12 @@ public class VoiceRecorder {
         // Start recording.
         audioRecord.startRecording();
         // Start processing the captured audio.
-        thread = new Thread(new TransferFromAudioRecorder());
-        if (BuildConfig.DEBUG) {
-            Log.d(TAG, "start audio recorder");
-        }
+        thread = new HandlerThread("read-audio-buffer");
+        Log.d(TAG, "start audio recorder");
         thread.start();
+        Handler handler = new Handler(thread.getLooper());
+        readAudioBuffer = new TransferFromAudioRecorder(encodingType);
+        handler.post(readAudioBuffer);
     }
 
     /**
@@ -149,9 +140,9 @@ public class VoiceRecorder {
      */
     public void stop() {
         synchronized (lock) {
-            dismiss();
             if (thread != null) {
-                thread.interrupt();
+                stop = true;
+                thread.quit();
                 thread = null;
             }
             if (audioRecord != null) {
@@ -159,24 +150,7 @@ public class VoiceRecorder {
                 audioRecord.release();
                 audioRecord = null;
             }
-            if (libFlac != null) {
-                libFlac.release();
-                libFlac = null;
-            }
-            buffer = null;
-            if (BuildConfig.DEBUG) {
-                Log.d(TAG, "stop audio recorder");
-            }
-        }
-    }
-
-    /**
-     * Dismisses the currently ongoing utterance.
-     */
-    public void dismiss() {
-        if (voiceHeardMillis != Long.MAX_VALUE) {
-            voiceHeardMillis = Long.MAX_VALUE;
-            eventListener.onRecordEnd();
+            Log.d(TAG, "stop audio recorder");
         }
     }
 
@@ -185,7 +159,7 @@ public class VoiceRecorder {
      *
      * @return The sample rate of recorded audio.
      */
-    public int getSampleRate() {
+    int getSampleRate() {
         if (audioRecord != null) {
             return audioRecord.getSampleRate();
         }
@@ -207,7 +181,6 @@ public class VoiceRecorder {
             final AudioRecord audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC,
                     sampleRate, CHANNEL, ENCODING, sizeInBytes);
             if (audioRecord.getState() == AudioRecord.STATE_INITIALIZED) {
-                buffer = new byte[sizeInBytes];
                 if (encodingType == VOICE_ENCODE_AS_FLAC) {
                     // 1 CHANNEL mono
                     // 16 ENCODING_PCM_16BIT
@@ -228,18 +201,38 @@ public class VoiceRecorder {
      */
     private class TransferFromAudioRecorder implements Runnable {
 
+        private LibFlac libFlac;
+
+        public TransferFromAudioRecorder(int encodingType) {
+            if (encodingType == VOICE_ENCODE_AS_FLAC) {
+                libFlac = new LibFlac();
+                libFlac.setFlacEncodeCallback(new LibFlac.EncoderCallback() {
+                    @Override
+                    public void onEncoded(byte[] data, int sized) {
+                        synchronized (lock) {
+                            if (eventListener != null && !stop) {
+                                eventListener.onRecording(data, sized);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
         @Override
         public void run() {
-            if (BuildConfig.DEBUG) {
-                Log.d(TAG, "read from audio record buffer");
-            }
+            Log.d(TAG, "read from audio record buffer");
+            byte[] buffer = new byte[sizeInBytes];
+            String tmp = "";
             while (true) {
+                tmp = tmp + stop;
                 synchronized (lock) {
-                    if (Thread.currentThread().isInterrupted()) {
-                        break;
+                    if (stop) {
+                        endRecording();
+                        return;
                     }
                     final int size = audioRecord.read(buffer, 0, buffer.length);
-                    if (size > 0) {
+                    if (size > 0 && !stop) {
                         final long now = System.currentTimeMillis();
                         if (isHearingVoice(buffer, size)) {
                             if (voiceHeardMillis == Long.MAX_VALUE) {
@@ -258,6 +251,8 @@ public class VoiceRecorder {
                             voiceHeardMillis = now;
                             if (now - voiceStartStartedMillis > maxSpeech) {
                                 end();
+                                endRecording();
+                                return;
                             }
                         } else if (voiceHeardMillis != Long.MAX_VALUE) {
                             if (encodingType == VOICE_ENCODE_AS_FLAC) {
@@ -267,6 +262,8 @@ public class VoiceRecorder {
                             }
                             if (now - voiceHeardMillis > SPEECH_TIMEOUT_MILLIS) {
                                 end();
+                                endRecording();
+                                return;
                             }
                         }
                     }
@@ -274,13 +271,22 @@ public class VoiceRecorder {
             }
         }
 
+        private void endRecording() {
+            if (voiceHeardMillis != Long.MAX_VALUE) {
+                voiceHeardMillis = Long.MAX_VALUE;
+                if (encodingType == VOICE_ENCODE_AS_FLAC) {
+                    libFlac.finish();
+                }
+                if (libFlac != null) {
+                    libFlac.release();
+                    libFlac = null;
+                }
+            }
+            eventListener.onRecordEnd();
+        }
+
         // end the record
         private void end() {
-            voiceHeardMillis = Long.MAX_VALUE;
-            eventListener.onRecordEnd();
-            if (encodingType == VOICE_ENCODE_AS_FLAC) {
-                libFlac.finish();
-            }
             stop();
         }
 
