@@ -162,8 +162,7 @@ The function call when SDK reach the maximum duration or user stop recording man
 by calling function `voiceRecorderService?.stopRecordVoice()`.
 
 This function can be use to update the UI as voice record finish. The SDK will automatically
-send the audio data the server. **However SDK will not notify whether the audio send was successful or
-audio processing has been done.**
+send the audio data the server.
 
 ```kotlin
 override fun onVoiceSent(response: VoiceResponse?) {
