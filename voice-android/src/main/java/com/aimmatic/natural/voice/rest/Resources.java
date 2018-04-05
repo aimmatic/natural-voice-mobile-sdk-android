@@ -22,7 +22,7 @@ import okhttp3.MediaType;
 public interface Resources {
 
     String ApiVersion = "/v1";
-    String NaturalVoice = "/natural/voice";
+    String NaturalVoice = "/insights/UploadAudio";
 
     MediaType MEDIA_TYPE_WAVE = MediaType.parse("audio/wav");
     MediaType MEDIA_TYPE_FLAC = MediaType.parse("audio/flac");

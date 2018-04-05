@@ -12,14 +12,14 @@ Please allow a few hours for a response.
 
 # Feature #
 
-Link to frontend mockup:
+Example:
 - [Natural Voice Mobile](http://www.aimmatic.com/natural-voice.html)
 
 # Usage #
 
 ## Setup Natural Voice SDK dependency ##
 
-Natural Voice Mobile SDK required **Android 4.1+**.
+Natural Voice Mobile SDK requires **Android 4.1+**.
 
 ```gradle
 dependencies {
@@ -43,8 +43,8 @@ Add Service into your application
 <service android:name="com.aimmatic.natural.voice.android.VoiceRecorderService" />
 ```
 
-**Note:** The SDK required permission "**android.permission.RECORD_AUDIO**" to be granted before
-you can start record the voice.
+**Note:** The SDK requires permission "**android.permission.RECORD_AUDIO**" to be granted before
+you can start the voice recorder.
 
 ## Add Kotlin Code ##
 
@@ -116,28 +116,28 @@ voiceRecorderService?.startRecordVoice(24, "en_US")
 ```
 
 Voice Recording service will throw a RuntimeException if it cannot initiate
-AudioRecord class which use to record audio.
+AudioRecord class which it uses to record audio.
 
 Note: Language can be choose from **com.aimmatic.natural.voice.rest.Language**
 
-The SDK only record the audio data when it detected that there was a voice in
- audio data otherwise audio data that provided by AudioRecord class will
+The SDK only records the audio data when it detects that there was a voice in
+ audio data, otherwise audio data provided by AudioRecord class will
 be ignored. The maximum duration of voice recording is not the total duration from
  start recording until the end but it a total duration from hearing the voice until the end.
 
-The SDK will stop the record it cannot hear the voice for 2 seconds.
+The SDK will stop the recording if cannot hear the voice for 2 seconds.
 
-### Listening to recording ###
+### Listening during recording ###
 
-The EventListener provide a callback that allow application to interacted
-with UI.
+The EventListener provide a callback to allow the application to interact
+with a UI.
 
 ```kotlin
 override fun onRecordStart() {
 }
 ```
 
-The function call immediately as soon as SDK hearing the voice from audio streaming
+The function call that happens immediately as soon as the SDK hears the voice from audio streaming
 data provided by AudioRecord class.
 
 ```kotlin
@@ -145,23 +145,23 @@ override fun onRecording(data: ByteArray?, size: Int) {
 }
 ```
 
-The function call when SDK detected the voice from audio streaming data
-provided by AudioRecord class. The size represent the actual byte array in the data.
-Where the data represent the binary audio format of FLAC or WAVE depending on
+The function call when the SDK detects the voice from the audio streaming data
+provided by AudioRecord class. The size represents the actual byte array in the data.
+Where the data represents the binary audio format of FLAC or WAV depending on
 the setting when you start `startRecordVoice`. By default, The SDK will record audio
 as FLAC audio format.
 
-This function can be use to update the UI as voice record is currently happening.
+This function can be use to update the UI as voice recording is currently happening.
 
 ```kotlin
 override fun onRecordEnd() {
 }
 ```
 
-The function call when SDK reach the maximum duration or user stop recording manually
+The function call when SDK reaches the maximum duration or user stops recording manually
 by calling function `voiceRecorderService?.stopRecordVoice()`.
 
-This function can be use to update the UI as voice record finish. The SDK will automatically
+This function can be use to update the UI after voice recording is finished. The SDK will automatically
 send the audio data the server.
 
 ```kotlin
@@ -169,6 +169,6 @@ override fun onVoiceSent(response: VoiceResponse?) {
 }
 ```
 
-The function call after SDK send the voice data to the server. If voice successfully receive by
+The function call after SDK sends the voice data to the server. If voice is successfully received by
 the server the response will contain the voice id otherwise a none 0 response code is provided which
-indicate the server is unable to receive the voice data.
+indicates the server is unable to receive the voice data.
