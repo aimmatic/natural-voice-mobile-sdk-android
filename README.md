@@ -23,7 +23,7 @@ Natural Voice Mobile SDK requires **Android 4.1+**.
 
 ```gradle
 dependencies {
-    implementation 'com.aimmatic.natural:voice-android:1.0.1'
+    implementation 'com.aimmatic.natural:voice-android:1.0.2'
 }
 ```
 
