@@ -19,11 +19,11 @@ Example:
 
 ## Setup Natural Voice SDK dependency ##
 
-Natural Voice Mobile SDK requires **Android 4.1+**.
+Natural Voice Mobile SDK requires **Android 5.0+**.
 
 ```gradle
 dependencies {
-    implementation 'com.aimmatic.natural:voice-android:1.0.2'
+    implementation 'com.aimmatic.natural:voice-android:1.0.3'
 }
 ```
 
@@ -46,7 +46,36 @@ Add Service into your application
 **Note:** The SDK requires permission "**android.permission.RECORD_AUDIO**" to be granted before
 you can start the voice recorder.
 
-## Add Kotlin Code ##
+## Authentication ##
+
+To authentication Oauth2 with AimMatic account using API Key start AimMatic Activity.
+
+```kotlin
+startActivity(Intent(this, AimMaticActivity::class.java))
+```
+To receive AccessToken after authentication success, start activity for result
+
+```kotlin
+startActivityForResult(Intent(this, AimMaticActivity::class.java), 1000)
+```
+then override onActivityResult method
+```kotlin
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    var accessToken = AimMaticLoginFragment.getAccessToken(data)
+}
+```
+
+AimMatic API will save token and automatically after Oauth2 success. The audio upload
+API will use user's access token if available otherwise API Key will be used.
+
+Use the code below to get the current access token
+
+```kotlin
+AndroidAppContext(this).accessToken
+```
+
+## Using Voice Service ##
 
 Declare variable voice recorder service
 
@@ -149,7 +178,7 @@ The function call when the SDK detects the voice from the audio streaming data
 provided by AudioRecord class. The size represents the actual byte array in the data.
 Where the data represents the binary audio format of FLAC or WAV depending on
 the setting when you start `startRecordVoice`. By default, The SDK will record audio
-as FLAC audio format.
+as WAV audio format.
 
 This function can be use to update the UI as voice recording is currently happening.
 

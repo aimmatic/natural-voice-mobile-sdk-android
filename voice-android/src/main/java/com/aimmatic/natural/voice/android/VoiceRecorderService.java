@@ -124,7 +124,7 @@ public class VoiceRecorderService extends Service {
      * @param language     a language of BCP-47 code. Get the language from {@link com.aimmatic.natural.voice.rest.Language#bcp47Code}
      */
     public void startRecordVoice(int speechLength, String language) {
-        this.startRecordVoice(speechLength, language, VoiceRecorder.VOICE_ENCODE_AS_FLAC);
+        this.startRecordVoice(speechLength, language, VoiceRecorder.VOICE_ENCODE_AS_WAVE);
     }
 
     /**
