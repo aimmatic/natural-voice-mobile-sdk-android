@@ -13,6 +13,9 @@ limitations under the License.
 
 package com.aimmatic.natural.core.rest;
 
+import com.aimmatic.natural.oauth.AccessToken;
+import com.aimmatic.natural.oauth.Profile;
+
 import okhttp3.OkHttpClient;
 
 /**
@@ -53,5 +56,32 @@ public interface AppContext {
      * @return okhttp client instance
      */
     OkHttpClient getOkHttpClient();
+
+    /**
+     * Get access token of current logged in user
+     *
+     * @return current access token of the user
+     */
+    AccessToken getAccessToken();
+
+    /**
+     * Get current profile of current logged in user
+     *
+     * @return current user profile
+     */
+    Profile getProfile();
+
+    /**
+     * Replace current active app id with the given appId
+     * @param appId an app id
+     */
+    void setAppId(String appId);
+
+    /**
+     * Get current active app id
+     *
+     * @return an app id
+     */
+    String getAppId();
 
 }

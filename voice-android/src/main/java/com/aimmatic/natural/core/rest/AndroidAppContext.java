@@ -14,9 +14,14 @@ limitations under the License.
 package com.aimmatic.natural.core.rest;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+
+import com.aimmatic.natural.oauth.AccessToken;
+import com.aimmatic.natural.oauth.Profile;
+import com.google.gson.Gson;
 
 import okhttp3.OkHttpClient;
 
@@ -25,6 +30,12 @@ import okhttp3.OkHttpClient;
  */
 
 public class AndroidAppContext implements AppContext {
+
+    private static final String pref = "AimMaticPref";
+    private static final String token = "AimMaticPref-Token";
+    private static final String refreshToken = "AimMaticPref-RefreshToken";
+    private static final String userProfile = "AimMaticPref-UserProfile";
+    private static final String currentAppId = "AimMaticPref-AppId";
 
     private Context context;
     private OkHttpClient okHttpClient;
@@ -67,6 +78,73 @@ public class AndroidAppContext implements AppContext {
                     .addInterceptor(new Interceptor(this)).build();
         }
         return okHttpClient;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public AccessToken getAccessToken() {
+        SharedPreferences sp = context.getSharedPreferences(pref, Context.MODE_PRIVATE);
+        AccessToken accessToken = new AccessToken(
+                sp.getString(token, null), sp.getString(refreshToken, null));
+        return (accessToken.getToken() == null) ? null : accessToken;
+    }
+
+    /**
+     * Save access token to a share preference
+     *
+     * @param accessToken user's access token
+     */
+    public void saveAccessToken(AccessToken accessToken) {
+        SharedPreferences sp = context.getSharedPreferences(pref, Context.MODE_PRIVATE);
+        sp.edit().putString(token, accessToken.getToken()).putString(refreshToken, accessToken.getRefreshToken()).apply();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Profile getProfile() {
+        SharedPreferences sp = context.getSharedPreferences(pref, Context.MODE_PRIVATE);
+        String jsonProfile = sp.getString(userProfile, null);
+        if (jsonProfile != null) {
+            try {
+                return new Gson().fromJson(jsonProfile, Profile.class);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Save user's profile
+     *
+     * @param profile user profile
+     */
+    public void saveUserProfile(Profile profile) {
+        SharedPreferences sp = context.getSharedPreferences(pref, Context.MODE_PRIVATE);
+        String jsonProfile = new Gson().toJson(profile);
+        sp.edit().putString(userProfile, jsonProfile).apply();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void setAppId(String appId) {
+        SharedPreferences sp = context.getSharedPreferences(pref, Context.MODE_PRIVATE);
+        sp.edit().putString(currentAppId, appId).apply();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getAppId() {
+        SharedPreferences sp = context.getSharedPreferences(pref, Context.MODE_PRIVATE);
+        return sp.getString(currentAppId, null);
     }
 
 }

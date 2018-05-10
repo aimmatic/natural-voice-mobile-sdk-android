@@ -13,6 +13,9 @@ limitations under the License.
 
 package com.aimmatic.natural.core.rest;
 
+import com.aimmatic.natural.oauth.AccessToken;
+import com.aimmatic.natural.oauth.AimMatic;
+
 import java.io.IOException;
 
 import okhttp3.Request;
@@ -25,11 +28,16 @@ import okhttp3.Response;
 
 public class Interceptor implements okhttp3.Interceptor {
 
+    private static final String authorization = "Authorization";
+    private static final String userAgent = "User-Agent";
+    private static final String xAppId = "X-App-Id";
+
     // interface app context
     private AppContext appContext;
 
     /**
      * Create Interceptor instance from the given app context
+     *
      * @param appContext app context instance
      */
     public Interceptor(AppContext appContext) {
@@ -42,15 +50,39 @@ public class Interceptor implements okhttp3.Interceptor {
     @Override
     public Response intercept(Chain chain) throws IOException {
         Request request = chain.request();
+        AccessToken accessToken = appContext.getAccessToken();
+        request = rebuildRequest(accessToken, request);
+        Response response = chain.proceed(request);
+        if (response.code() == 401 && accessToken != null) {
+            accessToken = AimMatic.renewToken(accessToken.getRefreshToken());
+            if (accessToken != null) {
+                if (appContext instanceof AndroidAppContext) {
+                    ((AndroidAppContext) appContext).saveAccessToken(accessToken);
+                }
+                request = rebuildRequest(accessToken, request);
+                response = chain.proceed(request);
+            }
+        }
+        return response;
+    }
+
+    private Request rebuildRequest(AccessToken accessToken, Request request) {
         try {
-            request = request.newBuilder()
-                    .addHeader("User-Agent", "AimMatic 1.0")
-                    .addHeader("Authorization", "AimMatic " + appContext.getApiKey())
-                    .build();
+            Request.Builder builder = request.newBuilder();
+            builder.addHeader("User-Agent", "AimMatic 1.0");
+            if (accessToken != null) {
+                builder.addHeader("Authorization", "Bearer " + accessToken.getToken());
+            } else {
+                builder.addHeader("Authorization", "AimMatic " + appContext.getApiKey());
+            }
+            String appId = appContext.getAppId();
+            if (appId != null) {
+                builder.addHeader(xAppId, appId);
+            }
+            return builder.build();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        return chain.proceed(request);
     }
 
 }
