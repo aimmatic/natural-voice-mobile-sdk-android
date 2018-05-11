@@ -23,7 +23,7 @@ Natural Voice Mobile SDK requires **Android 5.0+**.
 
 ```gradle
 dependencies {
-    implementation 'com.aimmatic.natural:voice-android:1.0.3'
+    implementation 'com.aimmatic.natural:voice-android:1.0.4'
 }
 ```
 
@@ -73,6 +73,22 @@ Use the code below to get the current access token
 
 ```kotlin
 AndroidAppContext(this).accessToken
+```
+
+## Apply Customer ID ##
+
+AimMatic API required to provide a customer id when authenticate by token. We provide
+a profile data which automatically load after Oauth2 authentication success. The profile
+contain a list of available customer.
+
+```kotlin
+AndroidAppContext(baseContext).profile.customers
+```
+
+then before perform the action on the voice service you must set the customer id first.
+
+```kotlin
+AndroidAppContext(baseContext).customerId = "Your Select customer ID"
 ```
 
 ## Using Voice Service ##

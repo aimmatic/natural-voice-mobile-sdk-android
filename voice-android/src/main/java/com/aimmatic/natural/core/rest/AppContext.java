@@ -73,6 +73,7 @@ public interface AppContext {
 
     /**
      * Replace current active app id with the given appId
+     *
      * @param appId an app id
      */
     void setAppId(String appId);
@@ -83,5 +84,19 @@ public interface AppContext {
      * @return an app id
      */
     String getAppId();
+
+    /**
+     * Replace current active customer id with the given customer id
+     *
+     * @param customerId a customer id
+     */
+    void setCustomerId(String customerId);
+
+    /**
+     * Get current active customer id
+     *
+     * @return a customer Id
+     */
+    String getCustomerId();
 
 }

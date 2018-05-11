@@ -36,6 +36,7 @@ public class AndroidAppContext implements AppContext {
     private static final String refreshToken = "AimMaticPref-RefreshToken";
     private static final String userProfile = "AimMaticPref-UserProfile";
     private static final String currentAppId = "AimMaticPref-AppId";
+    private static final String currentCustomerId = "AimMaticPref-CustomerId";
 
     private Context context;
     private OkHttpClient okHttpClient;
@@ -145,6 +146,24 @@ public class AndroidAppContext implements AppContext {
     public String getAppId() {
         SharedPreferences sp = context.getSharedPreferences(pref, Context.MODE_PRIVATE);
         return sp.getString(currentAppId, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void setCustomerId(String customerId) {
+        SharedPreferences sp = context.getSharedPreferences(pref, Context.MODE_PRIVATE);
+        sp.edit().putString(currentCustomerId, customerId).apply();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getCustomerId() {
+        SharedPreferences sp = context.getSharedPreferences(pref, Context.MODE_PRIVATE);
+        return sp.getString(currentCustomerId, null);
     }
 
 }

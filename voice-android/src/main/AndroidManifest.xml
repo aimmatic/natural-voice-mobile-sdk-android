@@ -7,7 +7,8 @@
     <application android:supportsRtl="true">
         <activity
             android:name=".ui.AimMaticActivity"
-            android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation" />
+            android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation"
+            android:theme="@style/AppThemeAimMaticNoActionBar" />
     </application>
 
 </manifest>

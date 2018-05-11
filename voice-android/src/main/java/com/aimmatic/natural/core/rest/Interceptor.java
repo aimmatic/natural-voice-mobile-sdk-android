@@ -31,6 +31,7 @@ public class Interceptor implements okhttp3.Interceptor {
     private static final String authorization = "Authorization";
     private static final String userAgent = "User-Agent";
     private static final String xAppId = "X-App-Id";
+    private static final String xCustomerId = "X-Customer-Id";
 
     // interface app context
     private AppContext appContext;
@@ -69,15 +70,19 @@ public class Interceptor implements okhttp3.Interceptor {
     private Request rebuildRequest(AccessToken accessToken, Request request) {
         try {
             Request.Builder builder = request.newBuilder();
-            builder.addHeader("User-Agent", "AimMatic 1.0");
+            builder.addHeader(userAgent, "AimMatic 1.0");
             if (accessToken != null) {
-                builder.addHeader("Authorization", "Bearer " + accessToken.getToken());
+                builder.addHeader(authorization, "Bearer " + accessToken.getToken());
             } else {
-                builder.addHeader("Authorization", "AimMatic " + appContext.getApiKey());
+                builder.addHeader(authorization, "AimMatic " + appContext.getApiKey());
             }
             String appId = appContext.getAppId();
             if (appId != null) {
                 builder.addHeader(xAppId, appId);
+            }
+            String customerId = appContext.getCustomerId();
+            if (customerId != null) {
+                builder.addHeader(xCustomerId, customerId);
             }
             return builder.build();
         } catch (Exception e) {

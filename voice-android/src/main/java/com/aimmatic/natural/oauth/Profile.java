@@ -16,14 +16,15 @@ package com.aimmatic.natural.oauth;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import java.util.ArrayList;
+
 /**
  * A parcelable contain user's profile information
  */
 public class Profile implements Parcelable {
 
-    private String username;
-    private String nickname;
-    private String fullname;
+    private User user;
+    private ArrayList<Customer> customers;
 
     /**
      * create empty user's profile
@@ -32,9 +33,37 @@ public class Profile implements Parcelable {
     }
 
     protected Profile(Parcel in) {
-        username = in.readString();
-        nickname = in.readString();
-        fullname = in.readString();
+        user = in.readParcelable(User.class.getClassLoader());
+        customers = in.createTypedArrayList(Customer.CREATOR);
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeParcelable(user, flags);
+        dest.writeTypedList(customers);
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    /**
+     * Get profile's user information
+     *
+     * @return a user information
+     */
+    public User getUser() {
+        return user;
+    }
+
+    /**
+     * Get available customers
+     *
+     * @return a list of customers
+     */
+    public ArrayList<Customer> getCustomers() {
+        return customers;
     }
 
     public static final Creator<Profile> CREATOR = new Creator<Profile>() {
@@ -48,42 +77,4 @@ public class Profile implements Parcelable {
             return new Profile[size];
         }
     };
-
-    /**
-     * Get user's Username. The user is an email of the user that use to login with AimMatic Oauth
-     *
-     * @return user's username
-     */
-    public String getUsername() {
-        return username;
-    }
-
-    /**
-     * Get current user's nickname
-     *
-     * @return user's nickname
-     */
-    public String getNickname() {
-        return nickname;
-    }
-
-    /**
-     * Get current user's fullname
-     * @return user's full name
-     */
-    public String getFullname() {
-        return fullname;
-    }
-
-    @Override
-    public int describeContents() {
-        return 0;
-    }
-
-    @Override
-    public void writeToParcel(Parcel dest, int flags) {
-        dest.writeString(username);
-        dest.writeString(nickname);
-        dest.writeString(fullname);
-    }
 }
