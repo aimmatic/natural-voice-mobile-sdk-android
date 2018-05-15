@@ -324,7 +324,7 @@ public class VoiceRecorderService extends Service {
         }
 
         private void send(File sendFile, double lat, double lng) {
-            VoiceResponse voiceResponse = new VoiceResponse(null, new Status(-1, "unable to send audio to server", null));
+            VoiceResponse voiceResponse = null;
             try {
                 VoiceSender voiceSender = new VoiceSender(new AndroidAppContext(ctx));
                 MediaType mediaType = Resources.MEDIA_TYPE_FLAC;
@@ -335,6 +335,10 @@ public class VoiceRecorderService extends Service {
                     Log.d(TAG, "sending flac voice data");
                 }
                 Response response = voiceSender.sentVoice(sendFile, mediaType, language, lat, lng, recordSampleRate);
+                if (response.code() >= 400 ) {
+                    voiceResponse = new VoiceResponse(null, new Status(response.code(), "unable to send audio to server", null));
+                    return;
+                }
                 Gson gson = new GsonBuilder().create();
                 String body = response.body().string();
                 voiceResponse = gson.fromJson(body, VoiceResponse.class);
@@ -343,6 +347,9 @@ public class VoiceRecorderService extends Service {
                 voiceResponse = new VoiceResponse(null, new Status(-1, e.getMessage(), null));
             } finally {
                 if (listeners != null) {
+                    if (voiceResponse == null) {
+                        voiceResponse = new VoiceResponse(null, new Status(-1, "unable to send audio to server", null));
+                    }
                     for (VoiceRecorderCallback vrc : this.listeners) {
                         vrc.onVoiceSent(voiceResponse);
                     }

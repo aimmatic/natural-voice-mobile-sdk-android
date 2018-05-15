@@ -181,6 +181,7 @@ public class VoiceRecorder {
             final AudioRecord audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC,
                     sampleRate, CHANNEL, ENCODING, sizeInBytes);
             if (audioRecord.getState() == AudioRecord.STATE_INITIALIZED) {
+                this.sizeInBytes = sizeInBytes;
                 if (encodingType == VOICE_ENCODE_AS_FLAC) {
                     // 1 CHANNEL mono
                     // 16 ENCODING_PCM_16BIT

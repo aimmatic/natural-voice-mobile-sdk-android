@@ -23,7 +23,7 @@ Natural Voice Mobile SDK requires **Android 5.0+**.
 
 ```gradle
 dependencies {
-    implementation 'com.aimmatic.natural:voice-android:1.0.4'
+    implementation 'com.aimmatic.natural:voice-android:1.0.5'
 }
 ```
 
@@ -217,3 +217,6 @@ override fun onVoiceSent(response: VoiceResponse?) {
 The function call after SDK sends the voice data to the server. If voice is successfully received by
 the server the response will contain the voice id otherwise a none 0 response code is provided which
 indicates the server is unable to receive the voice data.
+
+Note that the response status `response.status.code` now return a proper code related to http status code.
+It's provide developer to check status such as Unauthorized or Forbidden and display a proper response to the user.
