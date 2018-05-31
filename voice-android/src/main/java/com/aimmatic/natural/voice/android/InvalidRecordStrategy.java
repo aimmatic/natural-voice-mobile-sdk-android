@@ -11,21 +11,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package com.aimmatic.natural.voice.rest;
-
-import okhttp3.MediaType;
+package com.aimmatic.natural.voice.android;
 
 /**
- * This class contain all constant that use for rest api client
+ * Exception when an invalid strategy is detected
  */
+public class InvalidRecordStrategy extends RuntimeException {
 
-public interface Resources {
-
-    String ApiVersion = "/v1";
-    String NaturalVoice = "/insights/UploadAudio";
-    String NaturalVoiceLanguage = "/insights/langs";
-
-    MediaType MEDIA_TYPE_WAVE = MediaType.parse("audio/wav");
-    MediaType MEDIA_TYPE_FLAC = MediaType.parse("audio/flac");
+    public InvalidRecordStrategy(String message) {
+        super(message);
+    }
 
 }

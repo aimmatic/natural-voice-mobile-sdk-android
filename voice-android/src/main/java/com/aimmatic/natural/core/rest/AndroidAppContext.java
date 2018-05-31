@@ -23,6 +23,8 @@ import com.aimmatic.natural.oauth.AccessToken;
 import com.aimmatic.natural.oauth.Profile;
 import com.google.gson.Gson;
 
+import java.io.File;
+
 import okhttp3.OkHttpClient;
 
 /**
@@ -166,4 +168,11 @@ public class AndroidAppContext implements AppContext {
         return sp.getString(currentCustomerId, null);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public File getDataDir() {
+        return context.getFilesDir();
+    }
 }

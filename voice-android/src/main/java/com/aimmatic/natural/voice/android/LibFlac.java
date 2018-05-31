@@ -83,8 +83,8 @@ public class LibFlac {
      *
      * @param buffer a binary of raw wav pcm
      */
-    public void encode(byte[] buffer) {
-        if (!this.encode(cPointer, channel, buffer)) {
+    public void encode(byte[] buffer, int size) {
+        if (!this.encode(cPointer, channel, buffer, size)) {
             throw new IllegalArgumentException("buffer encode byte array must be smaller or equal 1024 byte");
         }
     }
@@ -128,8 +128,8 @@ public class LibFlac {
      * @param bitPerSecond a number of bit per second
      * @param compression  flac compression level
      */
-    public static native void convertRawPCM(String fileIn, String fileOut,
-                                            int channel, int sampleRate, int bitPerSecond, int compression);
+    public static native boolean convertRawPCM(String fileIn, String fileOut,
+                                               int channel, int sampleRate, int bitPerSecond, int compression);
 
     /*
      * release native resource with given pointer
@@ -145,7 +145,7 @@ public class LibFlac {
      * encode the wav to flac using native code by passing wave binary data, number of channel
      * and the reference to C pointer.
      */
-    private native boolean encode(long cPointer, int channel, byte[] in);
+    private native boolean encode(long cPointer, int channel, byte[] in, int size);
 
     /*
      * initialize flac native resource

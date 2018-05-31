@@ -13,19 +13,24 @@ limitations under the License.
 
 package com.aimmatic.natural.voice.rest;
 
-import okhttp3.MediaType;
+import java.util.concurrent.CountDownLatch;
 
 /**
- * This class contain all constant that use for rest api client
+ * Wait class for concurrent thread network
  */
+public class AsyncWait extends CountDownLatch {
 
-public interface Resources {
+    boolean failed;
+    Object response;
 
-    String ApiVersion = "/v1";
-    String NaturalVoice = "/insights/UploadAudio";
-    String NaturalVoiceLanguage = "/insights/langs";
-
-    MediaType MEDIA_TYPE_WAVE = MediaType.parse("audio/wav");
-    MediaType MEDIA_TYPE_FLAC = MediaType.parse("audio/flac");
-
+    /**
+     * Constructs a {@code CountDownLatch} initialized with the given count.
+     *
+     * @param count the number of times {@link #countDown} must be invoked
+     *              before threads can pass through {@link #await}
+     * @throws IllegalArgumentException if {@code count} is negative
+     */
+    public AsyncWait(int count) {
+        super(count);
+    }
 }

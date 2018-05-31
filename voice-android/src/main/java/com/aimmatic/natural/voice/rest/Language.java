@@ -13,20 +13,52 @@ limitations under the License.
 
 package com.aimmatic.natural.voice.rest;
 
+import android.content.Context;
+import android.support.annotation.NonNull;
+import android.support.annotation.VisibleForTesting;
+
+import com.aimmatic.natural.core.rest.AndroidAppContext;
+import com.aimmatic.natural.core.rest.AppContext;
+import com.aimmatic.natural.voice.rest.response.LangResponse;
+import com.google.gson.Gson;
+import com.google.gson.annotations.SerializedName;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.Charset;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
+import okio.Buffer;
+import okio.BufferedSource;
+
 /**
  * This class private all support language for natural voice processing
  */
 
 public class Language {
 
+    @SerializedName("name")
     private String displayLanguage;
+
+    @SerializedName("fullname")
     private String langEn;
+
+    @SerializedName("speechlang")
     private String bcp47Code;
+
+    @SerializedName("nlplang")
     private String langCode;
 
     private static Language[] supportLang;
 
-    static {
+    private static void initialDefaultLanguages() {
         String allLang = "Deutsch (Deutschland),German (Germany),de-DE,de\n" +
                 "English (United States),English (United States),en-US,en\n" +
                 "English (Philippines),English (Philippines),en-PH,en\n" +
@@ -127,9 +159,126 @@ public class Language {
      * get all language supported by natural voice
      *
      * @return array of language
+     * @deprecated As of 1.1.0, it replace by {@link #getAllSupportedLanguage(Context)}
      */
+    @Deprecated
     public static Language[] getAllSupportedLanguage() {
+        if (supportLang == null) {
+            initialDefaultLanguages();
+        }
         return supportLang;
+    }
+
+    /**
+     * Get language from the give string lang
+     *
+     * @param language a string can be either language code (ISO 639-1) or BCP 47 Code
+     * @return a language object
+     * @see <a href="https://tools.ietf.org/rfc/bcp/bcp47.txt">BCP 47</a>
+     * @see <a href="https://en.wikipedia.org/wiki/ISO_639-1">ISO 639-1</a>
+     * @deprecated As of 1.1.0, it replace by {@link #getLanguage(Context, String)}
+     */
+    @Deprecated
+    public static Language getLanguage(String language) {
+        Language[] supportLang = getAllSupportedLanguage();
+        for (Language lang : supportLang) {
+            if (lang.bcp47Code.equalsIgnoreCase(language)) {
+                return lang;
+            } else if (lang.langCode.equalsIgnoreCase(language)) {
+                return lang;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * get all language supported by natural voice
+     *
+     * @param context android context
+     * @return array of language
+     */
+    public static Language[] getAllSupportedLanguage(Context context) {
+        if (supportLang == null) {
+            File file = new File(context.getFilesDir(), "aimmatic-speech-lang.json");
+            if (file.exists()) {
+                try {
+                    FileInputStream in = new FileInputStream(file);
+                    int size = in.available();
+                    byte[] buffer = new byte[size];
+                    in.read(buffer);
+                    in.close();
+                    supportLang = new Gson().fromJson(new String(buffer, "UTF-8"), Language[].class);
+                    if (supportLang != null) {
+                        return supportLang;
+                    }
+                    loadLanguage(new AndroidAppContext(context));
+                } catch (Exception e) {
+                    // ignore the error
+                }
+            } else {
+                loadLanguage(new AndroidAppContext(context));
+            }
+            initialDefaultLanguages();
+        }
+        return supportLang;
+    }
+
+    /**
+     * Get language from the give string lang
+     *
+     * @param language a string can be either language code (ISO 639-1) or BCP 47 Code
+     * @param context  android context
+     * @return a language object
+     * @see <a href="https://tools.ietf.org/rfc/bcp/bcp47.txt">BCP 47</a>
+     * @see <a href="https://en.wikipedia.org/wiki/ISO_639-1">ISO 639-1</a>
+     */
+    public static Language getLanguage(Context context, String language) {
+        Language[] supportLang = getAllSupportedLanguage(context);
+        for (Language lang : supportLang) {
+            if (lang.bcp47Code.equalsIgnoreCase(language)) {
+                return lang;
+            } else if (lang.langCode.equalsIgnoreCase(language)) {
+                return lang;
+            }
+        }
+        return null;
+    }
+
+    static void loadLanguage(final AppContext appContext) {
+        loadLanguage(appContext, null);
+    }
+
+    @VisibleForTesting
+    static void loadLanguage(final AppContext appContext, final Callback callback) {
+        OkHttpClient client = appContext.getOkHttpClient();
+        final Request request = new Request.Builder()
+                .url(appContext.getHost() + Resources.ApiVersion + Resources.NaturalVoiceLanguage)
+                .build();
+        final File dir = appContext.getDataDir();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                if (callback != null) callback.onFailure(call, e);
+            }
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                if (response.code() == 200 && response.body() != null) {
+                    ResponseBody responseBody = response.body();
+                    BufferedSource source = responseBody.source();
+                    source.request(Long.MAX_VALUE); // request the entire body.
+                    Buffer buffer = source.buffer();
+                    String resp = buffer.clone().readString(Charset.forName("UTF-8"));
+                    LangResponse lr = new Gson().fromJson(resp, LangResponse.class);
+                    File file = new File(dir, "aimmatic-speech-lang.json");
+                    FileOutputStream out = new FileOutputStream(file);
+                    String data = new Gson().toJson(lr.getLanguages());
+                    out.write(data.getBytes());
+                    out.close();
+                }
+                if (callback != null) callback.onResponse(call, response);
+            }
+        });
     }
 
 }

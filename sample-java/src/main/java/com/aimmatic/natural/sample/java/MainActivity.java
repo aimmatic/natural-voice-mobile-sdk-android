@@ -26,9 +26,14 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 
+import com.aimmatic.natural.voice.android.RecordStrategy;
+import com.aimmatic.natural.voice.android.VoiceRecorder;
 import com.aimmatic.natural.voice.android.VoiceRecorderService;
+import com.aimmatic.natural.voice.encoder.AudioMeta;
+import com.aimmatic.natural.voice.encoder.WavEncoder;
 import com.aimmatic.natural.voice.rest.Language;
 import com.aimmatic.natural.voice.rest.response.VoiceResponse;
 
@@ -36,6 +41,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
 
     private static final int REQUEST_RECORD_AUDIO_CODE = 100;
 
+    private RecordStrategy recordStrategy;
     private VoiceRecorderService voiceRecorderService;
 
     private FloatingActionButton record;
@@ -55,7 +61,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
 
     private VoiceRecorderService.VoiceRecorderCallback eventListener = new VoiceRecorderService.VoiceRecorderCallback() {
         @Override
-        public void onRecordStart() {
+        public void onRecordStart(AudioMeta audioMeta) {
         }
 
         @Override
@@ -63,7 +69,17 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         }
 
         @Override
-        public void onRecordEnd() {
+        public void onRecordError(Throwable throwable) {
+        }
+
+        @Override
+        public void onRecordEnd(byte state) {
+            if ((state == VoiceRecorder.RECORD_END_BY_IDLE && recordStrategy.getSpeechTimeoutPolicies() == RecordStrategy.POLICY_USER_CHOICE) ||
+                    (state == VoiceRecorder.RECORD_END_BY_MAX && recordStrategy.getMaxRecordDurationPolicies() == RecordStrategy.POLICY_USER_CHOICE)) {
+                // Ask user whether they want to send audio to the code or they want to canceled the current record
+                // then call "voiceRecorderService.onUserChoice(RecordStrategy.POLICY_SEND_IMMEDIATELY or RecordStrategy.POLICY_CANCELED)"
+                Log.d("Natural Voice", "You should ask user to make a decision!");
+            }
             record.setImageResource(R.drawable.ic_mic_black_24dp);
         }
 
@@ -78,6 +94,12 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        recordStrategy = new RecordStrategy()
+                .setEncoder(new WavEncoder())
+                .setMaxRecordDuration(59 * 1000)
+                .setSpeechTimeoutPolicies(RecordStrategy.POLICY_SEND_IMMEDIATELY)
+                .setMaxRecordDurationPolicies(RecordStrategy.POLICY_SEND_IMMEDIATELY)
+                .setLanguage(Language.getLanguage(getBaseContext(), "en-US"));
         record = findViewById(R.id.record);
         record.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -98,8 +120,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         if (requestCode == REQUEST_RECORD_AUDIO_CODE &&
                 grantResults.length != 0 &&
                 grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            // default 29 second and language is "en_US"
-            voiceRecorderService.startRecordVoice(10, Language.getAllSupportedLanguage()[1].getBcp47Code());
+            voiceRecorderService.startRecordVoice(recordStrategy);
         }
     }
 
@@ -110,11 +131,11 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
             return;
         }
         // default 29 second and language is "en_US"
-        voiceRecorderService.startRecordVoice(10, Language.getAllSupportedLanguage()[1].getBcp47Code());
+        voiceRecorderService.startRecordVoice(recordStrategy);
     }
 
     private void stopListen() {
-        voiceRecorderService.stopRecordVoice();
+        voiceRecorderService.stopRecordVoice(RecordStrategy.POLICY_SEND_IMMEDIATELY);
     }
 
     @Override

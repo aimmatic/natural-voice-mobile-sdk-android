@@ -23,7 +23,7 @@ Natural Voice Mobile SDK requires **Android 5.0+**.
 
 ```gradle
 dependencies {
-    implementation 'com.aimmatic.natural:voice-android:1.0.5'
+    implementation 'com.aimmatic.natural:voice-android:1.1.0'
 }
 ```
 
@@ -103,13 +103,16 @@ Create voice recorder listener
 
 ```kotlin
 private val eventListener: VoiceRecorderService.VoiceRecorderCallback = object : VoiceRecorderService.VoiceRecorderCallback() {
-    override fun onRecordStart() {
+    override fun onRecordStart(audioMeta: AudioMeta) {
     }
 
     override fun onRecording(data: ByteArray?, size: Int) {
     }
 
-    override fun onRecordEnd() {
+    override fun onRecordError(throwable: Throwable?) {
+    }
+
+    override fun onRecordEnd(state: Byte) {
     }
 
     override fun onVoiceSent(response: VoiceResponse?) {
@@ -154,10 +157,25 @@ override fun onStop() {
 }
 ```
 
+Create Record Strategy
+
+```kotlin
+val recordStrategy = RecordStrategy()
+            // maximum record duration available from 1sec to 59sec
+            .setMaxRecordDuration(59 * 1000)
+            // If user stop talking with some amount of duration, the record will stop
+            // and we choose to send audio as soon as record is stopped.
+            .setSpeechTimeoutPolicies(RecordStrategy.POLICY_SEND_IMMEDIATELY)
+            // same policy as Speech Timeout
+            .setMaxRecordDurationPolicies(RecordStrategy.POLICY_SEND_IMMEDIATELY)
+            // set language of speech
+            .setLanguage(Language.getLanguage(baseContext,"en-US"))
+```
+
 Start a maximum 24 seconds of voice recoding with english
 
 ```kotlin
-voiceRecorderService?.startRecordVoice(24, "en_US")
+voiceRecorderService?.startRecordVoice(recordStrategy)
 ```
 
 Voice Recording service will throw a RuntimeException if it cannot initiate
@@ -170,7 +188,14 @@ The SDK only records the audio data when it detects that there was a voice in
 be ignored. The maximum duration of voice recording is not the total duration from
  start recording until the end but it a total duration from hearing the voice until the end.
 
-The SDK will stop the recording if cannot hear the voice for 2 seconds.
+The SDK will stop the recording if cannot hear the voice for 2 seconds by default.
+
+Stop recording manually, must provide a policy either `RecordStrategy.POLICY_CANCELED` or
+`RecordStrategy.POLICY_SEND_IMMEDIATELY`
+
+```kotlin
+voiceRecorderService?.stopRecordVoice(RecordStrategy.POLICY_CANCELED)
+```
 
 ### Listening during recording ###
 
@@ -194,7 +219,7 @@ The function call when the SDK detects the voice from the audio streaming data
 provided by AudioRecord class. The size represents the actual byte array in the data.
 Where the data represents the binary audio format of FLAC or WAV depending on
 the setting when you start `startRecordVoice`. By default, The SDK will record audio
-as WAV audio format.
+as FLAC audio format.
 
 This function can be use to update the UI as voice recording is currently happening.
 

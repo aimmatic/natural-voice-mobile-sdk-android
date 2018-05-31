@@ -29,11 +29,15 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.annotation.VisibleForTesting;
 import android.support.v4.content.ContextCompat;
 import android.text.TextUtils;
 import android.util.Log;
 
 import com.aimmatic.natural.core.rest.AndroidAppContext;
+import com.aimmatic.natural.voice.encoder.AudioMeta;
+import com.aimmatic.natural.voice.encoder.FlacEncoder;
+import com.aimmatic.natural.voice.encoder.WavEncoder;
 import com.aimmatic.natural.voice.rest.Language;
 import com.aimmatic.natural.voice.rest.Resources;
 import com.aimmatic.natural.voice.rest.VoiceSender;
@@ -85,9 +89,10 @@ public class VoiceRecorderService extends Service {
     // binder
     private AudioRecordBinder binder = new AudioRecordBinder();
 
+    private byte stopPolicy;
     private int recordSampleRate;
     private VoiceRecorder voiceRecorder;
-    private VoiceRecorder.EventListener eventListener;
+    private RecordStrategy currentStrategy;
 
     /**
      * {@inheritDoc}
@@ -112,7 +117,7 @@ public class VoiceRecorderService extends Service {
      *
      * @param listener voice recorder listeners
      */
-    public void removeListener(@NonNull VoiceRecorder.EventListener listener) {
+    public void removeListener(@NonNull VoiceRecorderCallback listener) {
         listeners.remove(listener);
     }
 
@@ -122,9 +127,14 @@ public class VoiceRecorderService extends Service {
      *
      * @param speechLength a maximum length of speech can be recorded. if length value is 0 or negative, default length of 24 second is used.
      * @param language     a language of BCP-47 code. Get the language from {@link com.aimmatic.natural.voice.rest.Language#bcp47Code}
+     * @deprecated As of release 1.1.0, replaced by {@link VoiceRecorderService#startRecordVoice(RecordStrategy)}
      */
+    @Deprecated
     public void startRecordVoice(int speechLength, String language) {
-        this.startRecordVoice(speechLength, language, VoiceRecorder.VOICE_ENCODE_AS_WAVE);
+        this.startRecordVoice(new RecordStrategy()
+                .setMaxRecordDuration(speechLength * 1000)
+                .setLanguage(Language.getLanguage(language))
+                .setEncoder(new WavEncoder()));
     }
 
     /**
@@ -135,13 +145,45 @@ public class VoiceRecorderService extends Service {
      * @param language      a language of BCP-47 code. Get the language from {@link Language#getBcp47Code()}
      * @param voiceEncoding a voice encode type from {@link com.aimmatic.natural.voice.android.VoiceRecorder#VOICE_ENCODE_AS_WAVE}
      *                      or {@link com.aimmatic.natural.voice.android.VoiceRecorder#VOICE_ENCODE_AS_FLAC}
+     * @deprecated As of release 1.1.0, replaced by {@link VoiceRecorderService#startRecordVoice(RecordStrategy)}
      */
+    @Deprecated
     public void startRecordVoice(int speechLength, final String language, final int voiceEncoding) {
-        if (voiceRecorder != null) {
-            voiceRecorder.stop();
+        this.startRecordVoice(new RecordStrategy()
+                .setMaxRecordDuration(speechLength * 1000)
+                .setLanguage(Language.getLanguage(language))
+                .setEncoder(voiceEncoding == VoiceRecorder.VOICE_ENCODE_AS_WAVE ? new WavEncoder() : new FlacEncoder()));
+    }
+
+    /**
+     * Start record voice test
+     *
+     * @param recordStrategy a strategy to record audio
+     */
+    @VisibleForTesting
+    void startTestRecordVoice(final RecordStrategy recordStrategy, VoiceRecorder voiceRecorder) {
+        this.startRecordVoice(recordStrategy, voiceRecorder);
+    }
+
+    /**
+     * Start a voice recorder. Caller must check the record voice permission first before calling
+     * this method.
+     *
+     * @param recordStrategy a strategy to record audio
+     */
+    public void startRecordVoice(final RecordStrategy recordStrategy) {
+        this.startRecordVoice(recordStrategy, new VoiceRecorder(recordStrategy));
+    }
+
+    // internal start record voice
+    private void startRecordVoice(final RecordStrategy recordStrategy, VoiceRecorder newVoiceRecorder) {
+        this.currentStrategy = recordStrategy;
+        if (this.voiceRecorder != null) {
+            this.voiceRecorder.stop();
         }
+        this.voiceRecorder = newVoiceRecorder;
         // internal voice recorder listeners
-        eventListener = new VoiceRecorder.EventListener() {
+        VoiceRecorder.EventListener eventListener = new VoiceRecorder.EventListener() {
 
             private FileOutputStream outfile;
 
@@ -149,15 +191,13 @@ public class VoiceRecorderService extends Service {
              * {@inheritDoc}
              */
             @Override
-            public void onRecordStart() {
-                recordSampleRate = voiceRecorder.getSampleRate();
-                if (listeners != null) {
-                    for (VoiceRecorder.EventListener listener : listeners) {
-                        listener.onRecordStart();
-                    }
+            public void onRecordStart(AudioMeta audioMeta) {
+                recordSampleRate = VoiceRecorderService.this.voiceRecorder.getSampleRate();
+                for (VoiceRecorder.EventListener listener : listeners) {
+                    listener.onRecordStart(audioMeta);
                 }
                 try {
-                    String filename = "aimmatic-audio." + ((voiceEncoding == VoiceRecorder.VOICE_ENCODE_AS_FLAC) ? "flac" : "wav");
+                    String filename = "aimmatic-audio." + currentStrategy.getEncoder().extension();
                     outfile = new FileOutputStream(new File(getCacheDir(), filename));
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();
@@ -169,10 +209,8 @@ public class VoiceRecorderService extends Service {
              */
             @Override
             public void onRecording(byte[] data, int size) {
-                if (listeners != null) {
-                    for (VoiceRecorder.EventListener listener : listeners) {
-                        listener.onRecording(data, size);
-                    }
+                for (VoiceRecorder.EventListener listener : listeners) {
+                    listener.onRecording(data, size);
                 }
                 try {
                     outfile.write(data, 0, size);
@@ -185,38 +223,83 @@ public class VoiceRecorderService extends Service {
              * {@inheritDoc}
              */
             @Override
-            public void onRecordEnd() {
-                if (listeners != null) {
-                    for (VoiceRecorder.EventListener listener : listeners) {
-                        listener.onRecordEnd();
-                    }
+            public void onRecordEnd(byte state) {
+                for (VoiceRecorder.EventListener listener : listeners) {
+                    listener.onRecordEnd(state);
                 }
                 if (outfile != null) {
                     try {
                         outfile.close();
                     } catch (IOException e) {
                         Log.d(TAG, "unable to close output temporary (wave,flac) file due to " + e.getLocalizedMessage());
+                        VoiceRecorderService.this.voiceRecorder = null;
+                        return;
                     }
-                    BackgroundTask bt = new BackgroundTask(recordSampleRate, language, voiceEncoding, getApplicationContext(), listeners);
+                }
+                if (state == VoiceRecorder.RECORD_END_BY_USER && stopPolicy == RecordStrategy.POLICY_CANCELED) {
+                    String filename = "aimmatic-audio." + recordStrategy.getEncoder().extension();
+                    File file = new File(getCacheDir(), filename);
+                    // delete the file if user canceled
+                    file.delete();
+                } else if ((state == VoiceRecorder.RECORD_END_BY_IDLE && recordStrategy.getSpeechTimeoutPolicies() == RecordStrategy.POLICY_SEND_IMMEDIATELY) ||
+                        (state == VoiceRecorder.RECORD_END_BY_MAX && recordStrategy.getMaxRecordDurationPolicies() == RecordStrategy.POLICY_SEND_IMMEDIATELY) ||
+                        (state == VoiceRecorder.RECORD_END_BY_USER && stopPolicy == RecordStrategy.POLICY_SEND_IMMEDIATELY)) {
+                    BackgroundTask bt = new BackgroundTask(recordSampleRate, recordStrategy, getApplicationContext(), listeners);
                     bt.start();
                     bt.sendVoice();
                 }
                 voiceRecorder = null;
             }
         };
-        voiceRecorder = new VoiceRecorder(speechLength, voiceEncoding, eventListener);
+        this.voiceRecorder.setRecorderCallback(eventListener);
         Log.d(TAG, "start voice recorder thread");
-        voiceRecorder.start();
+        this.voiceRecorder.start();
     }
 
     /**
-     * Stop a voice recorder manually without reaching 29 second or 2 second not voice timeout
+     * Stop a voice recorder manually
+     *
+     * @deprecated As of 1.1.0, replaces by {@link #stopRecordVoice(byte)}
      */
+    @Deprecated
     public void stopRecordVoice() {
+        this.stopRecordVoice(RecordStrategy.POLICY_SEND_IMMEDIATELY);
+    }
+
+    /**
+     * Stop a voice recorder manually and provide a policy for whether we send the audio or we canceled.
+     * See {@link RecordStrategy#POLICY_SEND_IMMEDIATELY} and {@link RecordStrategy#POLICY_CANCELED}. Giving
+     * {@link RecordStrategy#POLICY_USER_CHOICE} will cause a runtime exception.
+     *
+     * @param policy a policy to process when user stop recording manually
+     */
+    public void stopRecordVoice(byte policy) {
+        if (policy == RecordStrategy.POLICY_USER_CHOICE) {
+            throw new IllegalArgumentException("Policy can only be either POLICY_CANCELED or POLICY_SEND_IMMEDIATELY");
+        }
         if (voiceRecorder != null) {
+            this.stopPolicy = policy;
             voiceRecorder.stop();
             voiceRecorder = null;
             Log.d(TAG, "stop voice recorder thread");
+        }
+    }
+
+    /**
+     * Inform user's choice over the existing record
+     *
+     * @param policy a policy to define user's choice
+     */
+    public void onUserChoice(byte policy) {
+        if (policy == RecordStrategy.POLICY_SEND_IMMEDIATELY) {
+            BackgroundTask bt = new BackgroundTask(recordSampleRate, this.currentStrategy, getApplicationContext(), listeners);
+            bt.start();
+            bt.sendVoice();
+        } else if (policy == RecordStrategy.POLICY_CANCELED) {
+            String filename = "aimmatic-audio." + this.currentStrategy.getEncoder().extension();
+            File file = new File(getCacheDir(), filename);
+            // delete the file if user canceled
+            file.delete();
         }
     }
 
@@ -252,16 +335,14 @@ public class VoiceRecorderService extends Service {
     private static class BackgroundTask extends HandlerThread {
 
         private int recordSampleRate;
-        private int voiceEncoding;
-        private String language;
+        private RecordStrategy recordStrategy;
         private Context ctx;
         private ArrayList<VoiceRecorderCallback> listeners;
 
-        BackgroundTask(int sampleRate, String language, int encodingType, Context ctx, ArrayList<VoiceRecorderCallback> listener) {
+        BackgroundTask(int sampleRate, RecordStrategy recordStrategy, Context ctx, ArrayList<VoiceRecorderCallback> listener) {
             super("voice-sender");
-            recordSampleRate = sampleRate;
-            this.language = language;
-            this.voiceEncoding = encodingType;
+            this.recordSampleRate = sampleRate;
+            this.recordStrategy = recordStrategy;
             this.ctx = ctx;
             this.listeners = listener;
         }
@@ -276,9 +357,9 @@ public class VoiceRecorderService extends Service {
             });
         }
 
-        private Void doInBackground() {
+        private void doInBackground() {
             // set send the file
-            String filename = "aimmatic-audio." + ((voiceEncoding == VoiceRecorder.VOICE_ENCODE_AS_FLAC) ? "flac" : "wav");
+            String filename = "aimmatic-audio." + recordStrategy.getEncoder().extension();
             File file = new File(ctx.getCacheDir(), filename);
             final File sendFile = new File(ctx.getCacheDir(), System.currentTimeMillis() + "");
             if (file.renameTo(sendFile)) {
@@ -287,61 +368,63 @@ public class VoiceRecorderService extends Service {
                 double lng = 0;
                 if (permission == PackageManager.PERMISSION_GRANTED) {
                     LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
-                    Criteria criteria = new Criteria();
-                    criteria.setAccuracy(Criteria.ACCURACY_FINE);
-                    criteria.setPowerRequirement(Criteria.POWER_MEDIUM);
-                    final String provider = lm.getBestProvider(criteria, true);
-                    Location location = lm.getLastKnownLocation(provider);
-                    if (location != null) {
-                        lat = location.getLatitude();
-                        lng = location.getLongitude();
-                    } else {
-                        lm.requestSingleUpdate(provider, new LocationListener() {
-                            @Override
-                            public void onLocationChanged(Location location) {
-                                if (location != null) {
-                                    send(sendFile, location.getLongitude(), location.getLongitude());
+                    if (lm != null) {
+                        Criteria criteria = new Criteria();
+                        criteria.setAccuracy(Criteria.ACCURACY_FINE);
+                        criteria.setPowerRequirement(Criteria.POWER_MEDIUM);
+                        final String provider = lm.getBestProvider(criteria, true);
+                        Location location = lm.getLastKnownLocation(provider);
+                        if (location != null) {
+                            lat = location.getLatitude();
+                            lng = location.getLongitude();
+                        } else {
+                            lm.requestSingleUpdate(provider, new LocationListener() {
+                                @Override
+                                public void onLocationChanged(Location location) {
+                                    if (location != null) {
+                                        send(sendFile, location.getLongitude(), location.getLongitude());
+                                    }
                                 }
-                            }
 
-                            @Override
-                            public void onStatusChanged(String provider, int status, Bundle extras) {
-                            }
+                                @Override
+                                public void onStatusChanged(String provider, int status, Bundle extras) {
+                                }
 
-                            @Override
-                            public void onProviderEnabled(String provider) {
-                            }
+                                @Override
+                                public void onProviderEnabled(String provider) {
+                                }
 
-                            @Override
-                            public void onProviderDisabled(String provider) {
-                            }
-                        }, getLooper());
+                                @Override
+                                public void onProviderDisabled(String provider) {
+                                }
+                            }, getLooper());
+                        }
                     }
                 }
                 send(sendFile, lat, lng);
             }
-            return null;
         }
 
         private void send(File sendFile, double lat, double lng) {
             VoiceResponse voiceResponse = null;
             try {
                 VoiceSender voiceSender = new VoiceSender(new AndroidAppContext(ctx));
-                MediaType mediaType = Resources.MEDIA_TYPE_FLAC;
-                if (voiceEncoding == VoiceRecorder.VOICE_ENCODE_AS_WAVE) {
+                MediaType mediaType = recordStrategy.getEncoder().contentType();
+                if (mediaType == Resources.MEDIA_TYPE_WAVE) {
                     Log.d(TAG, "sending wave voice data");
-                    mediaType = Resources.MEDIA_TYPE_WAVE;
                 } else {
                     Log.d(TAG, "sending flac voice data");
                 }
-                Response response = voiceSender.sentVoice(sendFile, mediaType, language, lat, lng, recordSampleRate);
-                if (response.code() >= 400 ) {
+                Response response = voiceSender.sentVoice(sendFile, mediaType, recordStrategy.getLanguage().getBcp47Code(), lat, lng, recordSampleRate);
+                if (response.code() >= 400) {
                     voiceResponse = new VoiceResponse(null, new Status(response.code(), "unable to send audio to server", null));
                     return;
                 }
-                Gson gson = new GsonBuilder().create();
-                String body = response.body().string();
-                voiceResponse = gson.fromJson(body, VoiceResponse.class);
+                if (response.body() != null) {
+                    Gson gson = new GsonBuilder().create();
+                    String body = response.body().string();
+                    voiceResponse = gson.fromJson(body, VoiceResponse.class);
+                }
             } catch (IOException e) {
                 Log.d(TAG, "unable to send voice data to backend due to " + e.getLocalizedMessage());
                 voiceResponse = new VoiceResponse(null, new Status(-1, e.getMessage(), null));

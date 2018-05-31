@@ -95,14 +95,14 @@ Java_com_aimmatic_natural_voice_android_LibFlac_setMetadata(JNIEnv *env, jobject
 JNIEXPORT jboolean JNICALL
 Java_com_aimmatic_natural_voice_android_LibFlac_encode(JNIEnv *env, jobject instance,
                                                        jlong cPointer,
-                                                       jint channel, jbyteArray in_) {
+                                                       jint channel, jbyteArray in_, jint size) {
     jbyte *in = (*env)->GetByteArrayElements(env, in_, NULL);
 
     CallbackRef *cbRef = (CallbackRef *) cPointer;
     FLAC__StreamEncoder *encoder = cbRef->encoder;
 
     size_t i;
-    size_t need = (size_t) (*env)->GetArrayLength(env, in_) / 2;
+    size_t need = (size_t) size / 2;
 
     FLAC__byte *flacBytes = (FLAC__byte *) in;
 

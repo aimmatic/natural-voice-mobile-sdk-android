@@ -24,7 +24,10 @@ import android.os.IBinder
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
+import com.aimmatic.natural.voice.android.RecordStrategy
+import com.aimmatic.natural.voice.android.VoiceRecorder
 import com.aimmatic.natural.voice.android.VoiceRecorderService
+import com.aimmatic.natural.voice.encoder.AudioMeta
 import com.aimmatic.natural.voice.rest.Language
 import com.aimmatic.natural.voice.rest.response.VoiceResponse
 import kotlinx.android.synthetic.main.activity_main.*
@@ -49,13 +52,21 @@ class MainActivity : AppCompatActivity() {
 
     private val eventListener: VoiceRecorderService.VoiceRecorderCallback = object : VoiceRecorderService.VoiceRecorderCallback() {
 
-        override fun onRecordStart() {
+        override fun onRecordStart(audioMeta: AudioMeta) {
         }
 
         override fun onRecording(data: ByteArray?, size: Int) {
         }
 
-        override fun onRecordEnd() {
+        override fun onRecordError(throwable: Throwable?) {
+        }
+
+        override fun onRecordEnd(state: Byte) {
+            if ((state == VoiceRecorder.RECORD_END_BY_IDLE && recordStrategy?.speechTimeoutPolicies == RecordStrategy.POLICY_USER_CHOICE) ||
+                    (state == VoiceRecorder.RECORD_END_BY_MAX && recordStrategy?.maxRecordDurationPolicies == RecordStrategy.POLICY_USER_CHOICE)) {
+                // Ask user whether they want to send audio to the code or they want to canceled the current record
+                // then call "voiceRecorderService?.onUserChoice(RecordStrategy.POLICY_SEND_IMMEDIATELY or RecordStrategy.POLICY_CANCELED)"
+            }
             record.setImageResource(R.drawable.ic_mic_black_24dp)
         }
 
@@ -65,11 +76,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var started = false
+    private var recordStrategy: RecordStrategy? = null
     private var voiceRecorderService: VoiceRecorderService? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        recordStrategy = RecordStrategy()
+                .setMaxRecordDuration(59 * 1000)
+                .setSpeechTimeoutPolicies(RecordStrategy.POLICY_SEND_IMMEDIATELY)
+                .setMaxRecordDurationPolicies(RecordStrategy.POLICY_SEND_IMMEDIATELY)
+                .setLanguage(Language.getLanguage(baseContext,"en-US"))
         record.setOnClickListener {
             if (!started) {
                 record.setImageResource(R.drawable.ic_mic_off_black_24dp)
@@ -89,19 +106,19 @@ class MainActivity : AppCompatActivity() {
                 if (requestCode == REQUEST_RECORD_AUDIO_CODE &&
                         !grantResults.isEmpty() &&
                         grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // default 29 second and language is "en_US"
-                    voiceRecorderService?.startRecordVoice(10, Language.getAllSupportedLanguage()[1].bcp47Code)
+                    // default 59 second and language is "en_US"
+                    voiceRecorderService?.startRecordVoice(recordStrategy)
                 }
             }
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO_CODE)
             return
         }
-        // default 29 second and language is "en_US"
-        voiceRecorderService?.startRecordVoice(10, Language.getAllSupportedLanguage()[1].bcp47Code)
+        // default 59 second and language is "en_US"
+        voiceRecorderService?.startRecordVoice(recordStrategy)
     }
 
     private fun stopListen() {
-        voiceRecorderService?.stopRecordVoice()
+        voiceRecorderService?.stopRecordVoice(RecordStrategy.POLICY_SEND_IMMEDIATELY)
     }
 
     override fun onStart() {

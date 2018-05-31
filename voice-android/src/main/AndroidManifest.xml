@@ -1,14 +1,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.aimmatic.natural">
 
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application android:supportsRtl="true">
+
+        <meta-data
+            android:name="com.aimmatic.natural.voice.apikey"
+            android:value="YOUR API KEY" />
+
         <activity
             android:name=".ui.AimMaticActivity"
             android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation"
             android:theme="@style/AppThemeAimMaticNoActionBar" />
+
+        <service android:name=".voice.android.VoiceRecorderService" />
     </application>
 
 </manifest>

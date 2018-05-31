@@ -11,21 +11,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package com.aimmatic.natural.voice.rest;
-
-import okhttp3.MediaType;
+package com.aimmatic.natural.voice.encoder;
 
 /**
- * This class contain all constant that use for rest api client
+ * An exception that occurs during encode data
  */
-
-public interface Resources {
-
-    String ApiVersion = "/v1";
-    String NaturalVoice = "/insights/UploadAudio";
-    String NaturalVoiceLanguage = "/insights/langs";
-
-    MediaType MEDIA_TYPE_WAVE = MediaType.parse("audio/wav");
-    MediaType MEDIA_TYPE_FLAC = MediaType.parse("audio/flac");
-
+public class EncodingException extends Exception {
+    public EncodingException(String message) {
+        super(message);
+    }
 }

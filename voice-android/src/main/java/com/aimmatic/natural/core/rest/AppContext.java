@@ -16,6 +16,8 @@ package com.aimmatic.natural.core.rest;
 import com.aimmatic.natural.oauth.AccessToken;
 import com.aimmatic.natural.oauth.Profile;
 
+import java.io.File;
+
 import okhttp3.OkHttpClient;
 
 /**
@@ -98,5 +100,12 @@ public interface AppContext {
      * @return a customer Id
      */
     String getCustomerId();
+
+    /**
+     * Get available directory to store data
+     *
+     * @return file to directory
+     */
+    File getDataDir();
 
 }

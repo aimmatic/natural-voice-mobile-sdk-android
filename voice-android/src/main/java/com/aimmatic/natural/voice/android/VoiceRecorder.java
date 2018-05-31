@@ -20,16 +20,20 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
 
+import com.aimmatic.natural.voice.encoder.AudioMeta;
+import com.aimmatic.natural.voice.encoder.EncodingException;
+import com.aimmatic.natural.voice.encoder.EncodingReady;
+
 /**
  * This class represent an audio recorder. It record the speech into a wave format PCM 16 bit.
  * The voice recorder only record wave data if it detect any speech on the byte stream
  */
 
-public class VoiceRecorder {
+public class VoiceRecorder implements EncodingReady {
 
     private static final String TAG = "VoiceRecorder";
 
-    private static final int[] SAMPLE_RATE_CANDIDATES = new int[]{16000, 11025, 22050, 44100};
+    static final int[] SAMPLE_RATE_CANDIDATES = new int[]{16000, 11025, 22050, 44100};
 
     private static final int CHANNEL = AudioFormat.CHANNEL_IN_MONO;
     private static final int ENCODING = AudioFormat.ENCODING_PCM_16BIT;
@@ -37,17 +41,39 @@ public class VoiceRecorder {
     //
     private static final int AMPLITUDE_THRESHOLD = 1500;
     // 2 second if no speech detected if it will automatically end the record
-    private static final int SPEECH_TIMEOUT_MILLIS = 2000;
+    static final int SPEECH_TIMEOUT_MILLIS = 2000;
 
     /**
      * encode audio as wave pcm 16 bit
      */
-    public static int VOICE_ENCODE_AS_WAVE = 1;
+    public static final int VOICE_ENCODE_AS_WAVE = 1;
 
     /**
      * encode audio as flac from pcm wave 16 bit
      */
-    public static int VOICE_ENCODE_AS_FLAC = 2;
+    public static final int VOICE_ENCODE_AS_FLAC = 2;
+
+    /**
+     * A state indicate there is an error during record or encoding cause the recording process to stop
+     */
+    public static final byte RECORD_END_BY_INTERRUPTED = 0;
+
+    /**
+     * A state indicate that the audio recording was ended when user stop speaking after certain amount of time.
+     * See {@link RecordStrategy#setSpeechTimeout(int)}
+     */
+    public static final byte RECORD_END_BY_IDLE = 1;
+
+    /**
+     * A state indicate that the audio recording was ended when recording reach maximum allowed duration.
+     * See {@link RecordStrategy#setMaxRecordDuration(int)}
+     */
+    public static final byte RECORD_END_BY_MAX = 2;
+
+    /**
+     * A state indicate that the audio recording was ended by the user
+     */
+    public static final byte RECORD_END_BY_USER = 3;
 
     /**
      * event audio recorder listener
@@ -57,7 +83,7 @@ public class VoiceRecorder {
         /**
          * Called when the recorder starts hearing voice.
          */
-        public void onRecordStart() {
+        public void onRecordStart(AudioMeta audioMeta) {
         }
 
         /**
@@ -70,9 +96,17 @@ public class VoiceRecorder {
         }
 
         /**
+         * Called when the encoder encounter an exception during encode the audio
+         *
+         * @param throwable exception cause by encoder
+         */
+        public void onRecordError(Throwable throwable) {
+        }
+
+        /**
          * Called when the recorder stops hearing voice or exceed 29 second
          */
-        public void onRecordEnd() {
+        public void onRecordEnd(byte state) {
         }
 
     }
@@ -81,37 +115,35 @@ public class VoiceRecorder {
     private AudioRecord audioRecord;
 
     //
-    private int samplreRate;
-    private int sizeInBytes;
+    AudioMeta audioMeta;
+    int sizeInBytes;
+    RecordStrategy recordStrategy;
     //
     private HandlerThread thread;
-    private TransferFromAudioRecorder readAudioBuffer;
     private final Object lock = new Object();
     private boolean stop;
     // internal callback
-    private final EventListener eventListener;
-    //
-    private final int encodingType;
+    private EventListener eventListener;
 
-    private long maxSpeech;
     private long voiceHeardMillis = Long.MAX_VALUE;
     private long voiceStartStartedMillis;
 
     /**
-     * Create a new voice recorder object. It you decide to use this class directly you make sure to
-     * stop the recorder during device rotation otherwise leak or crash can happen.
+     * Create VoiceRecorder
      *
-     * @param speechLength  a maximum speech length in second, must be greater than 0 otherwise default length 29 second is set.
-     * @param encodingType  encode type
-     * @param eventListener voice recorder event listener
+     * @param recordStrategy a strategy to record the audio
      */
-    VoiceRecorder(int speechLength, int encodingType, EventListener eventListener) {
-        if (speechLength <= 0) {
-            this.maxSpeech = 29 * 1000;
-        } else {
-            this.maxSpeech = speechLength * 1000;
-        }
-        this.encodingType = encodingType;
+    VoiceRecorder(RecordStrategy recordStrategy) {
+        this.recordStrategy = recordStrategy;
+        this.audioMeta = new AudioMeta(0, 1, 16);
+    }
+
+    /**
+     * Set event callback
+     *
+     * @param eventListener a callback
+     */
+    void setRecorderCallback(EventListener eventListener) {
         this.eventListener = eventListener;
     }
 
@@ -119,19 +151,20 @@ public class VoiceRecorder {
      * Starts recording voice and caller must call stop later.
      */
     public void start() {
-        stop();
         audioRecord = createAudioRecord();
         if (audioRecord == null) {
             throw new RuntimeException("Cannot instantiate VoiceRecorder");
         }
         // Start recording.
         audioRecord.startRecording();
+        // assign the callback
+        recordStrategy.getEncoder().setEncodingReady(this);
         // Start processing the captured audio.
         thread = new HandlerThread("read-audio-buffer");
         Log.d(TAG, "start audio recorder");
         thread.start();
         Handler handler = new Handler(thread.getLooper());
-        readAudioBuffer = new TransferFromAudioRecorder(encodingType);
+        TransferFromAudioRecorder readAudioBuffer = new TransferFromAudioRecorder();
         handler.post(readAudioBuffer);
     }
 
@@ -160,10 +193,7 @@ public class VoiceRecorder {
      * @return The sample rate of recorded audio.
      */
     int getSampleRate() {
-        if (audioRecord != null) {
-            return audioRecord.getSampleRate();
-        }
-        return 0;
+        return audioMeta.getSampleRate();
     }
 
     /**
@@ -172,7 +202,7 @@ public class VoiceRecorder {
      * @return A newly created {@link AudioRecord}, or null if it cannot be created due to no permission
      * or no microphone available.
      */
-    private AudioRecord createAudioRecord() {
+    AudioRecord createAudioRecord() {
         for (int sampleRate : SAMPLE_RATE_CANDIDATES) {
             final int sizeInBytes = AudioRecord.getMinBufferSize(sampleRate, CHANNEL, ENCODING);
             if (sizeInBytes == AudioRecord.ERROR_BAD_VALUE) {
@@ -182,12 +212,7 @@ public class VoiceRecorder {
                     sampleRate, CHANNEL, ENCODING, sizeInBytes);
             if (audioRecord.getState() == AudioRecord.STATE_INITIALIZED) {
                 this.sizeInBytes = sizeInBytes;
-                if (encodingType == VOICE_ENCODE_AS_FLAC) {
-                    // 1 CHANNEL mono
-                    // 16 ENCODING_PCM_16BIT
-                    this.samplreRate = sampleRate;
-                    this.sizeInBytes = sizeInBytes;
-                }
+                this.audioMeta.setSampleRate(sampleRate);
                 return audioRecord;
             } else {
                 audioRecord.release();
@@ -197,26 +222,26 @@ public class VoiceRecorder {
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onEncoded(byte[] buffer, int size) {
+        eventListener.onRecording(buffer, size);
+    }
+
+    /**
      * Continuously processes the captured audio and notifies {@link #eventListener} of corresponding
      * events.
      */
     private class TransferFromAudioRecorder implements Runnable {
 
-        private LibFlac libFlac;
-
-        public TransferFromAudioRecorder(int encodingType) {
-            if (encodingType == VOICE_ENCODE_AS_FLAC) {
-                libFlac = new LibFlac();
-                libFlac.setFlacEncodeCallback(new LibFlac.EncoderCallback() {
-                    @Override
-                    public void onEncoded(byte[] data, int sized) {
-                        synchronized (lock) {
-                            if (eventListener != null && !stop) {
-                                eventListener.onRecording(data, sized);
-                            }
-                        }
-                    }
-                });
+        private boolean onRecording(byte[] buffer, int size) {
+            try {
+                recordStrategy.getEncoder().encode(buffer, size);
+                return false;
+            } catch (EncodingException e) {
+                eventListener.onRecordError(e);
+                return true;
             }
         }
 
@@ -224,12 +249,10 @@ public class VoiceRecorder {
         public void run() {
             Log.d(TAG, "read from audio record buffer");
             byte[] buffer = new byte[sizeInBytes];
-            String tmp = "";
             while (true) {
-                tmp = tmp + stop;
                 synchronized (lock) {
                     if (stop) {
-                        endRecording();
+                        endRecording(RECORD_END_BY_USER);
                         return;
                     }
                     final int size = audioRecord.read(buffer, 0, buffer.length);
@@ -238,32 +261,32 @@ public class VoiceRecorder {
                         if (isHearingVoice(buffer, size)) {
                             if (voiceHeardMillis == Long.MAX_VALUE) {
                                 voiceStartStartedMillis = now;
-                                eventListener.onRecordStart();
-                                if (VoiceRecorder.this.encodingType == VOICE_ENCODE_AS_FLAC) {
-                                    libFlac.initialize(VoiceRecorder.this.getSampleRate(), 1,
-                                            16, 5);
-                                }
+                                eventListener.onRecordStart(audioMeta);
+                                recordStrategy.getEncoder().initialize(audioMeta);
                             }
-                            if (encodingType == VOICE_ENCODE_AS_FLAC) {
-                                libFlac.encode(buffer);
-                            } else {
-                                eventListener.onRecording(buffer, size);
+                            // if there is an exception occurs
+                            if (onRecording(buffer, size)) {
+                                end();
+                                endRecording(RECORD_END_BY_INTERRUPTED);
+                                return;
                             }
                             voiceHeardMillis = now;
-                            if (now - voiceStartStartedMillis > maxSpeech) {
+                            if (now - voiceStartStartedMillis > recordStrategy.getMaxRecordDuration()) {
                                 end();
-                                endRecording();
+                                endRecording(RECORD_END_BY_MAX);
                                 return;
                             }
                         } else if (voiceHeardMillis != Long.MAX_VALUE) {
-                            if (encodingType == VOICE_ENCODE_AS_FLAC) {
-                                libFlac.encode(buffer);
-                            } else {
-                                eventListener.onRecording(buffer, size);
-                            }
-                            if (now - voiceHeardMillis > SPEECH_TIMEOUT_MILLIS) {
+                            // if there is an exception occurs
+                            if (onRecording(buffer, size)) {
                                 end();
-                                endRecording();
+                                endRecording(RECORD_END_BY_INTERRUPTED);
+                                return;
+                            }
+                            if (recordStrategy.getSpeechTimeout() > 0 && (now - voiceHeardMillis) > recordStrategy.getSpeechTimeout()) {
+                                Log.d(">>>", "End by timeout");
+                                end();
+                                endRecording(RECORD_END_BY_IDLE);
                                 return;
                             }
                         }
@@ -272,18 +295,12 @@ public class VoiceRecorder {
             }
         }
 
-        private void endRecording() {
+        private void endRecording(byte state) {
             if (voiceHeardMillis != Long.MAX_VALUE) {
                 voiceHeardMillis = Long.MAX_VALUE;
-                if (encodingType == VOICE_ENCODE_AS_FLAC) {
-                    libFlac.finish();
-                }
-                if (libFlac != null) {
-                    libFlac.release();
-                    libFlac = null;
-                }
+                recordStrategy.getEncoder().release();
             }
-            eventListener.onRecordEnd();
+            eventListener.onRecordEnd(state);
         }
 
         // end the record

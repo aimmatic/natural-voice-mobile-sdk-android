@@ -13,43 +13,23 @@ limitations under the License.
 
 package com.aimmatic.natural.voice.rest.response;
 
+import com.aimmatic.natural.voice.rest.Language;
 import com.google.gson.annotations.SerializedName;
 
 /**
- * Create voice response object
+ * Language Response
  */
+public class LangResponse {
 
-public class VoiceResponse extends BaseResponse {
-
-    @SerializedName("data")
-    private VoiceResult voiceResult;
-
-    /**
-     * Create voice response object
-     *
-     * @param id     a voice id
-     * @param status request status
-     */
-    public VoiceResponse(String id, Status status) {
-        super(status);
-        this.voiceResult = new VoiceResult();
-    }
+    @SerializedName("lang")
+    private Language[] languages;
 
     /**
-     * Get the voice id
+     * Get language responses language
      *
-     * @return a voice id
+     * @return a list of language
      */
-    public String getID() {
-        return voiceResult.getAudioId();
-    }
-
-    /**
-     * Get voice recognized result
-     *
-     * @return result of voice recognized
-     */
-    public VoiceResult getVoiceResult() {
-        return voiceResult;
+    public Language[] getLanguages() {
+        return languages;
     }
 }

@@ -11,21 +11,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package com.aimmatic.natural.voice.rest;
+package flac.decode;
 
-import okhttp3.MediaType;
+// leave libFlac C/C++ responsible for flac encode
+public class InvalidFlacException extends RuntimeException {
 
-/**
- * This class contain all constant that use for rest api client
- */
+    InvalidFlacException() {
+        super();
+    }
 
-public interface Resources {
-
-    String ApiVersion = "/v1";
-    String NaturalVoice = "/insights/UploadAudio";
-    String NaturalVoiceLanguage = "/insights/langs";
-
-    MediaType MEDIA_TYPE_WAVE = MediaType.parse("audio/wav");
-    MediaType MEDIA_TYPE_FLAC = MediaType.parse("audio/flac");
+    InvalidFlacException(Throwable cause) {
+        super(cause);
+    }
 
 }
