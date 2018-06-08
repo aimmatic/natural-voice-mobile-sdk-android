@@ -22,7 +22,6 @@ android {
             path "src/main/jni/Android.mk"
         }
     }
-    sourceSets { main { assets.srcDirs = ['src/main/assets', 'src/androidTest/assets/'] } }
 }
 
 dependencies {

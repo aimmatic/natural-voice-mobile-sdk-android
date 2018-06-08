@@ -6,11 +6,6 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application android:supportsRtl="true">
-
-        <meta-data
-            android:name="com.aimmatic.natural.voice.apikey"
-            android:value="YOUR API KEY" />
-
         <activity
             android:name=".ui.AimMaticActivity"
             android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation"
