@@ -14,7 +14,7 @@ limitations under the License.
 package com.aimmatic.natural.voice.android;
 
 import com.aimmatic.natural.voice.encoder.Encoder;
-import com.aimmatic.natural.voice.encoder.WavEncoder;
+import com.aimmatic.natural.voice.encoder.FlacEncoder;
 import com.aimmatic.natural.voice.rest.Language;
 
 /**
@@ -55,7 +55,7 @@ public class RecordStrategy {
      * Create record strategy
      */
     public RecordStrategy() {
-        encoder = new WavEncoder();
+        encoder = new FlacEncoder();
         sampleRatesCandidate = VoiceRecorder.SAMPLE_RATE_CANDIDATES;
         speechTimeout = VoiceRecorder.SPEECH_TIMEOUT_MILLIS;
         speechTimeoutPolicies = POLICY_USER_CHOICE;

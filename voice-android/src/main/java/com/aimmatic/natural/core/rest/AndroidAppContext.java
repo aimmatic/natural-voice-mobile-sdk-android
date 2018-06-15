@@ -24,6 +24,7 @@ import com.aimmatic.natural.oauth.Profile;
 import com.google.gson.Gson;
 
 import java.io.File;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
 
@@ -78,6 +79,8 @@ public class AndroidAppContext implements AppContext {
     public synchronized OkHttpClient getOkHttpClient() {
         if (okHttpClient == null) {
             okHttpClient = new OkHttpClient().newBuilder()
+                    .writeTimeout(20, TimeUnit.SECONDS)
+                    .readTimeout(20, TimeUnit.SECONDS)
                     .addInterceptor(new Interceptor(this)).build();
         }
         return okHttpClient;
